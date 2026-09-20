@@ -31,6 +31,6 @@ class Product extends Model
 
     public function modifierGroups(): BelongsToMany
     {
-        return $this->belongsToMany(ModifierGroup::class)->withPivot('sort_order')->orderBy('pivot_sort_order');
+        return $this->belongsToMany(ModifierGroup::class)->withPivot('sort_order')->orderByPivot('sort_order');
     }
 }
