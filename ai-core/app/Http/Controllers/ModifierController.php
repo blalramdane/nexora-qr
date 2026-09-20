@@ -18,13 +18,10 @@ class ModifierController extends Controller
         $restaurant = $tenant->restaurant();
         return Inertia::render('Menu/Modifiers', [
             'restaurant' => $restaurant->only(['id','name']),
-            'groups' => $restaurant->categories()
-                ->with(['products.modifierGroups.modifiers'])
-                ->get()
-                ->flatMap->products
-                ->flatMap->modifierGroups
-                ->unique('id')
-                ->values(),
+            'groups' => ModifierGroup::query()
+                ->where('restaurant_id', $restaurant->id)
+                ->with('modifiers')
+                ->orderBy('sort_order')->orderBy('name')->get(),
             'products' => $restaurant->categories()->with('products:id,category_id,name')->get()->flatMap->products->values(),
         ]);
     }
