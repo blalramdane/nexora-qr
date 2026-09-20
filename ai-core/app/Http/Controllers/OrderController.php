@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
-use App\Models\Modifier;
 use App\Models\Order;
 use App\Models\RestaurantTable;
 use Illuminate\Http\RedirectResponse;
