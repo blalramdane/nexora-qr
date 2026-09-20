@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Support\Str;
 
 class PublicOrderController extends Controller
 {
@@ -31,5 +30,13 @@ class PublicOrderController extends Controller
                 ]),
             ],
         ]);
+    }
+
+    private function whatsappUrl(Order $order): ?string
+    {
+        $phone = preg_replace('/\\D+/', '', (string) $order->restaurant->phone);
+        if (!$phone) return null;
+        if (str_starts_with($phone, '0')) $phone = '20'.substr($phone, 1);
+        return 'https://wa.me/'.$phone.'?text='.rawurlencode("Nexora QR - طلب {$order->order_number}");
     }
 }
