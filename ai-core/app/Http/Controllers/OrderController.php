@@ -125,6 +125,16 @@ class OrderController extends Controller
                     abort(422, 'Invalid modifier selection.');
                 }
 
+                foreach ($product->modifierGroups as $group) {
+                    $count = $group->modifiers->whereIn('id', $modifierIds->all())->count();
+                    if ($group->is_required && $count < max(1, $group->min_selections)) {
+                        abort(422, "Required modifier group {$group->name} is incomplete.");
+                    }
+                    if ($count < $group->min_selections || $count > $group->max_selections) {
+                        abort(422, "Invalid modifier count for {$group->name}.");
+                    }
+                }
+
                 $modifierTotal = $selectedModifiers->sum(fn ($modifier) => (float) $modifier->price_delta);
                 $unitPrice = (float) $product->price + $modifierTotal;
                 $lineTotal = $unitPrice * (int) $item['quantity'];
