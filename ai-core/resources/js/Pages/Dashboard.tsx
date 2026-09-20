@@ -1,0 +1,20 @@
+import { Head, useForm } from '@inertiajs/react';
+
+type Props = { restaurant: { id: number; name: string; slug: string }; branchCount: number };
+
+export default function Dashboard({ restaurant, branchCount }: Props) {
+    const logout = useForm();
+    return <main className="min-h-screen bg-slate-100 p-6">
+        <Head title="Dashboard" />
+        <div className="mx-auto max-w-6xl">
+            <div className="flex items-center justify-between">
+                <div><p className="text-sm text-slate-500">Restaurant</p><h1 className="text-3xl font-bold">{restaurant.name}</h1></div>
+                <button onClick={() => logout.post('/logout')} className="rounded-xl bg-slate-900 px-4 py-2 text-white">Logout</button>
+            </div>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl bg-white p-6 shadow-sm"><p className="text-slate-500">Branches</p><p className="mt-2 text-3xl font-bold">{branchCount}</p></div>
+                <div className="rounded-2xl bg-white p-6 shadow-sm"><p className="text-slate-500">Tenant</p><p className="mt-2 font-semibold">{restaurant.slug}</p></div>
+            </div>
+        </div>
+    </main>;
+}
