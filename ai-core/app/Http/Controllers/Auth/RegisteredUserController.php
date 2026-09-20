@@ -27,6 +27,7 @@ class RegisteredUserController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'restaurant_name' => ['required', 'string', 'max:160'],
+            'restaurant_phone' => ['nullable', 'string', 'max:40'],
         ]);
 
         [$user, $restaurant] = DB::transaction(function () use ($data) {
@@ -38,6 +39,7 @@ class RegisteredUserController extends Controller
 
             $restaurant = Restaurant::create([
                 'name' => $data['restaurant_name'],
+                'phone' => $data['restaurant_phone'] ?? null,
                 'slug' => Str::slug($data['restaurant_name']).'-'.Str::lower(Str::random(6)),
             ]);
 
