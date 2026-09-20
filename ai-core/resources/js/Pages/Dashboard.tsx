@@ -10,7 +10,11 @@ export default function Dashboard({ restaurant, branchCount }: Props) {
             <div className="flex items-center justify-between">
                 <div><p className="text-sm text-slate-500">Restaurant</p><h1 className="text-3xl font-bold">{restaurant.name}</h1></div>
                 <div className="flex gap-3">
-                    <a href="/menu" className="rounded-xl bg-white px-4 py-2 font-semibold text-slate-900 shadow-sm">Menu</a>
+                    <div className="flex flex-wrap gap-2">
+                        <a href="/menu" className="rounded-xl bg-white px-4 py-2 font-semibold text-slate-900 shadow-sm">Menu</a>
+                        <a href="/orders" className="rounded-xl bg-white px-4 py-2 font-semibold text-slate-900 shadow-sm">Orders</a>
+                        <a href="/tables" className="rounded-xl bg-white px-4 py-2 font-semibold text-slate-900 shadow-sm">Tables / QR</a>
+                    </div>
                     <button onClick={() => logout.post('/logout')} className="rounded-xl bg-slate-900 px-4 py-2 text-white">Logout</button>
                 </div>
             </div>
