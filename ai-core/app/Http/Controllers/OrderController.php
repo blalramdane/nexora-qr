@@ -198,15 +198,25 @@ class OrderController extends Controller
         return back();
     }
 
+    private function whatsappUrl(Order $order): ?string
+    {
+        $phone = preg_replace('/\\D+/', '', (string) $order->restaurant->phone);
+        if (!$phone) return null;
+        if (str_starts_with($phone, '0')) $phone = '20'.substr($phone, 1);
+        $text = "Nexora QR - طلب {$order->order_number}\\nالإجمالي: {$order->total}";
+        return 'https://wa.me/'.$phone.'?text='.rawurlencode($text);
+    }
+
     private function confirmationPayload(Order $order): array
     {
-        $order->loadMissing('items.modifiers', 'table');
+        $order->loadMissing('items.modifiers', 'table', 'restaurant');
 
         return [
             'order_number' => $order->order_number,
             'status' => $order->status,
             'total' => $order->total,
             'table' => $order->table?->name,
+            'whatsapp_url' => $this->whatsappUrl($order),
             'items' => $order->items->map(fn ($item) => [
                 'name' => $item->product_name,
                 'quantity' => $item->quantity,
