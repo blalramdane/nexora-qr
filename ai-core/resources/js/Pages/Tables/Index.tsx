@@ -1,9 +1,17 @@
 import { useForm, Head } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 
 type Table = {
   id: number; name: string; token: string; capacity: number | null;
   branch: string | null; is_active: boolean; active_orders_count: number; menu_url: string;
 };
+
+function QRPreview({ value }: { value:string }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => { QRCode.toDataURL(value, { width: 240, margin: 2 }).then(setSrc); }, [value]);
+  return src ? <img src={src} alt="QR Code" className="mx-auto mt-4 h-48 w-48 rounded-xl bg-white p-2" /> : <div className="mx-auto mt-4 h-48 w-48 animate-pulse rounded-xl bg-white/10" />;
+}
 
 export default function Tables({ restaurant, tables }: { restaurant: { id: number; name: string }; tables: Table[] }) {
   const form = useForm({ name: '', capacity: '' });
@@ -32,7 +40,7 @@ export default function Tables({ restaurant, tables }: { restaurant: { id: numbe
             <a className="rounded-lg bg-slate-800 px-3 py-2 text-sm" href={table.menu_url} target="_blank">Open menu</a>
             <button className="rounded-lg border border-slate-700 px-3 py-2 text-sm" onClick={() => form.post(`/tables/${table.id}/toggle`, { preserveScroll: true })}>{table.is_active ? 'Disable' : 'Enable'}</button>
           </div>
-          <p className="mt-3 break-all text-xs text-slate-500">{table.menu_url}</p>
+          <p className="mt-3 break-all text-xs text-slate-500">{table.menu_url}</p><QRPreview value={table.menu_url} />
         </article>)}
       </div>
     </div>
