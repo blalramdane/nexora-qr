@@ -40,7 +40,7 @@ export default function Tables({ restaurant, tables }: { restaurant: { id: numbe
             <a className="rounded-lg bg-slate-800 px-3 py-2 text-sm" href={table.menu_url} target="_blank">Open menu</a>
             <button className="rounded-lg border border-slate-700 px-3 py-2 text-sm" onClick={() => form.post(`/tables/${table.id}/toggle`, { preserveScroll: true })}>{table.is_active ? 'Disable' : 'Enable'}</button>
           </div>
-          <p className="mt-3 break-all text-xs text-slate-500">{table.menu_url}</p><QRPreview value={table.menu_url} />
+          <p className="mt-3 break-all text-xs text-slate-500">{table.menu_url}</p><QRPreview value={table.menu_url} /><button onClick={() => window.print()} className="mt-3 w-full rounded-lg border border-slate-700 px-3 py-2 text-sm">Print QR</button>
         </article>)}
       </div>
     </div>
