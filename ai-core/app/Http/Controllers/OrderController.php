@@ -6,7 +6,6 @@ use App\Models\Category;
 use App\Models\Modifier;
 use App\Models\Order;
 use App\Models\RestaurantTable;
-use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +41,7 @@ class OrderController extends Controller
         ]);
     }
 
-    public function store(Request $request, TenantContext $tenant): Response
+    public function store(Request $request): Response
     {
         $data = $request->validate([
             'items' => ['required', 'array', 'min:1'],
@@ -55,10 +54,11 @@ class OrderController extends Controller
             'customer_phone' => ['nullable', 'string', 'max:40'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'table_token' => ['nullable', 'string', 'max:120'],
+            'restaurant_slug' => ['required', 'string', 'max:180'],
             'idempotency_key' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $restaurant = $tenant->restaurant();
+        $restaurant = \App\Models\Restaurant::query()->where('slug', $data['restaurant_slug'])->where('is_active', true)->firstOrFail();
         $idempotency = $data['idempotency_key'] ?? null;
 
         if ($idempotency) {
