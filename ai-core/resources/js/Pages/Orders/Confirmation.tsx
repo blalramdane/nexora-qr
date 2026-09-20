@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 
 type Item = { name:string; quantity:number; line_total:string; modifiers:string[] };
-type Order = { order_number:string; status:string; total:string; table:string|null; items:Item[] };
+type Order = { order_number:string; status:string; total:string; table:string|null; whatsapp_url:string|null; items:Item[] };
 
 const labels: Record<string,string> = { pending:'جاري استقبال الطلب', confirmed:'تم تأكيد الطلب', preparing:'جاري التحضير', ready:'الطلب جاهز', completed:'تم تسليم الطلب', cancelled:'تم إلغاء الطلب' };
 
@@ -23,7 +23,7 @@ export default function Confirmation({ order }: { order: Order }) {
         <div className="mt-5 flex justify-between text-xl font-bold"><span>الإجمالي</span><span>{order.total}</span></div>
         {order.table && <p className="mt-2 text-sm text-slate-400">الطاولة: {order.table}</p>}
       </section>
-      <a href={`/order/${order.order_number}`} className="block rounded-xl bg-white px-5 py-3 text-center font-semibold text-slate-900">متابعة حالة الطلب</a>
+      <a href={`/order/${order.order_number}`} className="block rounded-xl bg-white px-5 py-3 text-center font-semibold text-slate-900">متابعة حالة الطلب</a>{order.whatsapp_url && <a target="_blank" href={order.whatsapp_url} className="block rounded-xl border border-slate-700 px-5 py-3 text-center">تأكيد عبر WhatsApp</a>}
     </div>
   </main>;
 }
