@@ -1,8 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
 
-type Props = { restaurant: { id: number; name: string; slug: string }; branchCount: number };
+type Props = { restaurant: { id: number; name: string; slug: string }; branchCount: number; stats: { categories:number; products:number; tables:number; today_orders:number; today_revenue:string } };
 
-export default function Dashboard({ restaurant, branchCount }: Props) {
+export default function Dashboard({ restaurant, branchCount, stats }: Props) {
     const logout = useForm();
     return <main className="min-h-screen bg-slate-100 p-6">
         <Head title="Dashboard" />
