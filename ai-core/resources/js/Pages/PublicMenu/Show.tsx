@@ -19,7 +19,7 @@ export default function Show({
   const [selectedModifiers, setSelectedModifiers] = useState<number[]>([]);
   const [notes, setNotes] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const form = useForm({ items: [] as any[], customer_name:'', customer_phone:'', notes:'', table_token:table?.token ?? '', idempotency_key: crypto.randomUUID() });
+  const form = useForm({ items: [] as any[], customer_name:'', customer_phone:'', notes:'', table_token:table?.token ?? '', restaurant_slug:restaurant.slug, idempotency_key: crypto.randomUUID() });
 
   const total = useMemo(() => cart.reduce((sum,item) => {
     const modifierTotal = item.product.modifier_groups.flatMap(g => g.modifiers).filter(m => item.modifier_ids.includes(m.id)).reduce((s,m) => s + Number(m.price_delta), 0);
