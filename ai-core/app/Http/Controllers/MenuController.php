@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -120,4 +121,35 @@ class MenuController extends Controller
 
         return back();
     }
+
+    public function updateProduct(Request $request, int $productId, TenantContext $tenant): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required','string','max:160'],
+            'description' => ['nullable','string','max:2000'],
+            'price' => ['required','numeric','min:0'],
+            'image_path' => ['nullable','string','max:500'],
+            'is_available' => ['boolean'],
+            'is_featured' => ['boolean'],
+        ]);
+
+        $product = Product::query()->where('restaurant_id', $tenant->id())->findOrFail($productId);
+        $product->update($data);
+        return back();
+    }
+
+    public function destroyProduct(int $productId, TenantContext $tenant): RedirectResponse
+    {
+        $product = Product::query()->where('restaurant_id', $tenant->id())->findOrFail($productId);
+        $product->delete();
+        return back();
+    }
+
+    public function toggleProduct(int $productId, TenantContext $tenant): RedirectResponse
+    {
+        $product = Product::query()->where('restaurant_id', $tenant->id())->findOrFail($productId);
+        $product->update(['is_available' => !$product->is_available]);
+        return back();
+    }
+
 }
