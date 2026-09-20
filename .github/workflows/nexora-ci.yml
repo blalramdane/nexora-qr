@@ -1,0 +1,48 @@
+name: Nexora CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, 'feature/**']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-core
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, sqlite3, pdo_sqlite
+          coverage: none
+
+      - name: Install PHP dependencies
+        run: composer update --no-interaction --prefer-dist
+
+      - name: Prepare Laravel
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+          php artisan migrate --force
+
+      - name: Run tests
+        run: php artisan test
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install JS dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: npm run build
