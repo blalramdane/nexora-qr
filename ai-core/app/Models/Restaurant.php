@@ -20,6 +20,6 @@ class Restaurant extends Model
 
     public function branches(): HasMany { return $this->hasMany(Branch::class); }
     public function users(): BelongsToMany {
-        return $this->belongsToMany(User::class)->withPivot(['role', 'is_active'])->withTimestamps();
+        return $this->belongsToMany(User::class, 'restaurant_users')->withPivot(['role', 'is_active'])->withTimestamps();
     }
 }
