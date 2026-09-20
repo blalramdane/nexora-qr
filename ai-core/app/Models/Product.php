@@ -5,23 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Product extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'restaurant_id',
-        'category_id',
-        'name',
-        'slug',
-        'description',
-        'image_path',
-        'price',
-        'compare_at_price',
-        'is_available',
-        'is_featured',
-        'sort_order',
+        'restaurant_id','category_id','name','slug','description','image_path',
+        'price','compare_at_price','is_available','is_featured','sort_order',
     ];
 
     protected function casts(): array
@@ -34,13 +26,11 @@ class Product extends Model
         ];
     }
 
-    public function restaurant(): BelongsTo
-    {
-        return $this->belongsTo(Restaurant::class);
-    }
+    public function restaurant(): BelongsTo { return $this->belongsTo(Restaurant::class); }
+    public function category(): BelongsTo { return $this->belongsTo(Category::class); }
 
-    public function category(): BelongsTo
+    public function modifierGroups(): BelongsToMany
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsToMany(ModifierGroup::class)->withPivot('sort_order')->orderBy('pivot_sort_order');
     }
 }
