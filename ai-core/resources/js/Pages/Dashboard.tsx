@@ -9,7 +9,10 @@ export default function Dashboard({ restaurant, branchCount }: Props) {
         <div className="mx-auto max-w-6xl">
             <div className="flex items-center justify-between">
                 <div><p className="text-sm text-slate-500">Restaurant</p><h1 className="text-3xl font-bold">{restaurant.name}</h1></div>
-                <button onClick={() => logout.post('/logout')} className="rounded-xl bg-slate-900 px-4 py-2 text-white">Logout</button>
+                <div className="flex gap-3">
+                    <a href="/menu" className="rounded-xl bg-white px-4 py-2 font-semibold text-slate-900 shadow-sm">Menu</a>
+                    <button onClick={() => logout.post('/logout')} className="rounded-xl bg-slate-900 px-4 py-2 text-white">Logout</button>
+                </div>
             </div>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl bg-white p-6 shadow-sm"><p className="text-slate-500">Branches</p><p className="mt-2 text-3xl font-bold">{branchCount}</p></div>
