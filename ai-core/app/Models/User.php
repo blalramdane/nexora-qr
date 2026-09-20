@@ -22,7 +22,7 @@ class User extends Authenticatable
 
     public function restaurants(): BelongsToMany
     {
-        return $this->belongsToMany(Restaurant::class)->withPivot(['role', 'is_active'])->withTimestamps();
+        return $this->belongsToMany(Restaurant::class, 'restaurant_users')->withPivot(['role', 'is_active'])->withTimestamps();
     }
 
     public function hasRole(string $role, ?Restaurant $restaurant = null): bool
