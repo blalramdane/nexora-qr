@@ -18,9 +18,7 @@ class PublicMenuController extends Controller
             ])
             ->firstOrFail();
 
-        $categories = $restaurant->newQuery()
-            ->findOrFail($restaurant->id)
-            ->categories()
+        $categories = $restaurant->categories()
             ->where('is_active', true)
             ->with([
                 'products' => fn ($query) => $query
