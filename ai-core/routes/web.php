@@ -42,5 +42,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/tables/{table}/toggle', [TableController::class, 'toggle'])->name('tables.toggle');
         Route::post('/menu/categories', [MenuController::class, 'storeCategory'])->name('menu.categories.store');
         Route::post('/menu/products', [MenuController::class, 'storeProduct'])->name('menu.products.store');
+        Route::patch('/menu/products/{productId}', [MenuController::class, 'updateProduct'])->name('menu.products.update');
+        Route::delete('/menu/products/{productId}', [MenuController::class, 'destroyProduct'])->name('menu.products.destroy');
+        Route::post('/menu/products/{productId}/toggle', [MenuController::class, 'toggleProduct'])->name('menu.products.toggle');
     });
 });
