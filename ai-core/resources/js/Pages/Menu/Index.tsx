@@ -19,6 +19,14 @@ type Product = {
   is_featured: boolean;
 };
 
+function ProductActions({ product }: { product: Product }) {
+  const form = useForm();
+  return <div className="mt-3 flex gap-2">
+    <button onClick={() => form.post(`/menu/products/${product.id}/toggle`, { preserveScroll: true })} className="rounded-lg border border-slate-700 px-3 py-1 text-xs">{product.is_available ? 'Disable' : 'Enable'}</button>
+    <button onClick={() => { if (confirm('Delete this product?')) form.delete(`/menu/products/${product.id}`, { preserveScroll: true }); }} className="rounded-lg border border-red-900 px-3 py-1 text-xs text-red-300">Delete</button>
+  </div>;
+}
+
 export default function MenuIndex({
   restaurant,
   categories,
@@ -97,9 +105,12 @@ export default function MenuIndex({
               <h2 className="mb-4 text-xl font-semibold">Products</h2>
               <div className="space-y-3">
                 {products.map(product => (
-                  <div key={product.id} className="flex items-center justify-between rounded-lg bg-slate-800 p-3">
-                    <div><div className="font-medium">{product.name}</div><div className="text-sm text-slate-400">{product.category ?? '—'}</div></div>
-                    <span>{product.price}</span>
+                  <div key={product.id} className="rounded-lg bg-slate-800 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div><div className="font-medium">{product.name}</div><div className="text-sm text-slate-400">{product.category ?? '—'} · {product.is_available ? 'Available' : 'Unavailable'}</div></div>
+                      <span>{product.price}</span>
+                    </div>
+                    <ProductActions product={product} />
                   </div>
                 ))}
                 {products.length === 0 && <p className="text-slate-400">No products yet.</p>}
