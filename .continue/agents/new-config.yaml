@@ -1,0 +1,15 @@
+name: Nexora Local AI
+version: 1.0.0
+schema: v1
+
+models:
+  - name: Nexora Qwen Local
+    provider: openai
+    model: Qwen3.5-2B-Q4_K_M.gguf
+    apiBase: http://localhost:11434/v1
+    apiKey: dummy
+    roles:
+      - chat
+      - edit
+      - apply
+      - autocomplete
