@@ -176,6 +176,17 @@ class OrderController extends Controller
         $data = $request->validate(['status' => ['required', 'in:pending,confirmed,preparing,ready,completed,cancelled']]);
 
         $from = $order->status;
+        $allowed = [
+            'pending' => ['confirmed','cancelled'],
+            'confirmed' => ['preparing','cancelled'],
+            'preparing' => ['ready','cancelled'],
+            'ready' => ['completed'],
+            'completed' => [],
+            'cancelled' => [],
+        ];
+
+        abort_unless(in_array($data['status'], $allowed[$from] ?? [], true) || $data['status'] === $from, 422);
+
         $order->update(['status' => $data['status']]);
         $order->events()->create([
             'event' => 'status_changed',
