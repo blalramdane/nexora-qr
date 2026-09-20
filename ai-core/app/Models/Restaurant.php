@@ -13,13 +13,16 @@ class Restaurant extends Model
 
     protected $fillable = ['name', 'slug', 'phone', 'logo_path', 'is_active'];
 
-    protected function casts(): array
-    {
-        return ['is_active' => 'boolean'];
-    }
+    protected function casts(): array { return ['is_active' => 'boolean']; }
 
     public function branches(): HasMany { return $this->hasMany(Branch::class); }
-    public function users(): BelongsToMany {
-        return $this->belongsToMany(User::class, 'restaurant_users')->withPivot(['role', 'is_active'])->withTimestamps();
+    public function categories(): HasMany { return $this->hasMany(Category::class); }
+    public function tables(): HasMany { return $this->hasMany(RestaurantTable::class); }
+    public function orders(): HasMany { return $this->hasMany(Order::class); }
+
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'restaurant_users')
+            ->withPivot(['role', 'is_active'])->withTimestamps();
     }
 }
