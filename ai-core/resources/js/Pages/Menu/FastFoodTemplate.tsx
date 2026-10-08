@@ -65,7 +65,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
 
     return (
         <>
-            <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-fast min-h-screen overflow-x-hidden bg-[#090807]">
+            <style>{motionCss}@keyframes nxReveal{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}</style><div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-fast min-h-screen overflow-x-hidden bg-[#090807]">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-[#090807]/92 backdrop-blur-xl">
                 <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
                     <button type="button" aria-label="فتح القائمة" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-white">☰</button>
@@ -85,7 +85,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
 
             <main className="mx-auto max-w-3xl pb-28">
                 <section className="px-3 pt-3">
-                    <div className="nx-hero relative overflow-hidden border border-white/10 shadow-2xl" style={{ borderRadius: '0 0 ' + radius + ' ' + radius }}>
+                    <div className="nx-hero relative overflow-hidden border border-white/10 shadow-2xl animate-[nxReveal_.7s_ease-out_both]" style={{ borderRadius: '0 0 ' + radius + ' ' + radius }}>
                         <div className="aspect-[0.9] min-h-[390px]">
                             <ImageOrFallback src={imageUrl(heroProduct?.image_path)} alt={heroProduct?.name ?? menu.name} className="h-full w-full object-cover" />
                         </div>
@@ -142,7 +142,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
 
                     <div className="mt-5 space-y-2.5">
                         {(activeCategory?.products ?? []).map((product: any) => (
-                            <button key={product.id} type="button" disabled={!product.is_available} onClick={() => openProduct(product)} className="nx-product nx-shine group flex w-full items-center gap-3 border border-white/10 bg-white/[0.035] p-2 text-right shadow-lg transition active:scale-[0.99] disabled:opacity-45" style={{ borderRadius: radius }}>
+                            <button key={product.id} type="button" disabled={!product.is_available} onClick={() => openProduct(product)} className="nx-product nx-shine group flex w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#090807]" items-center gap-3 border border-white/10 bg-white/[0.035] p-2 text-right shadow-lg transition active:scale-[0.99] disabled:opacity-45" style={{ borderRadius: radius }}>
                                 <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[0.85rem] bg-black/40">
                                     <ImageOrFallback src={imageUrl(product.image_path)} alt={product.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                                 </div>
