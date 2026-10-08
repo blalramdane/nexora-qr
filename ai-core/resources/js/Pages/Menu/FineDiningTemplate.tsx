@@ -38,7 +38,7 @@ export default function FineDiningTemplate({ menu, restaurantName, preview = fal
 
     return (
         <>
-            <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-fine min-h-screen overflow-x-hidden bg-[#080807]">
+            <style>{motionCss}@keyframes nxReveal{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}</style><div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-fine min-h-screen overflow-x-hidden bg-[#080807]">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-[#080807]/90 backdrop-blur-xl">
                 <div className="mx-auto flex h-[72px] max-w-5xl items-center justify-between px-5">
                     <button type="button" aria-label="القائمة" className="grid h-10 w-10 place-items-center border border-white/10 text-lg text-white/70" style={{ borderRadius: '999px' }}>☰</button>
@@ -52,7 +52,7 @@ export default function FineDiningTemplate({ menu, restaurantName, preview = fal
 
             <main className="mx-auto max-w-5xl pb-28">
                 <section className="px-4 pt-4 sm:px-6">
-                    <div className="nx-fine-hero relative overflow-hidden border border-white/10 shadow-2xl" style={{ borderRadius }}>
+                    <div className="nx-fine-hero relative overflow-hidden border animate-[nxReveal_.9s_ease-out_both] border-white/10 shadow-2xl" style={{ borderRadius }}>
                         <div className="aspect-[1.05] min-h-[360px] sm:min-h-[500px]">
                             <Image src={imageUrl(hero?.image_path)} alt={hero?.name ?? menu.name} className="h-full w-full object-cover" />
                         </div>
@@ -84,7 +84,7 @@ export default function FineDiningTemplate({ menu, restaurantName, preview = fal
                     </div>
 
                     <div className="mt-7 divide-y divide-white/10">
-                        {(current?.products ?? []).map((product: any) => <button key={product.id} type="button" disabled={!product.is_available} onClick={() => open(product)} className="nx-editorial group flex w-full gap-4 py-5 text-right transition disabled:opacity-35 sm:gap-6">
+                        {(current?.products ?? []).map((product: any) => <button key={product.id} type="button" disabled={!product.is_available} onClick={() => open(product)} className="nx-editorial group flex w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#f0dfae]/70" gap-4 py-5 text-right transition disabled:opacity-35 sm:gap-6">
                             <div className="order-2 h-24 w-24 shrink-0 overflow-hidden sm:h-32 sm:w-32" style={{ borderRadius }}>
                                 <Image src={imageUrl(product.image_path)} alt={product.name} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
                             </div>
