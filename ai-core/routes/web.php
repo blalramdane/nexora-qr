@@ -40,6 +40,11 @@ Route::middleware('auth')->group(function () {
         Route::put('/menus/{menu}/categories/{category}/products/{product}/variants/{variant}', [ProductVariantController::class, 'update'])->name('menus.product-variants.update');
         Route::delete('/menus/{menu}/categories/{category}/products/{product}/variants/{variant}', [ProductVariantController::class, 'destroy'])->name('menus.product-variants.destroy');
         Route::post('/menus/{menu}/categories/{category}/products/{product}/variants/reorder', [ProductVariantController::class, 'reorder'])->name('menus.product-variants.reorder');
+
+        Route::post('/menus/{menu}/categories/{category}/products/{product}/modifiers', [ModifierController::class, 'store'])->name('menus.modifiers.store');
+        Route::put('/menus/{menu}/categories/{category}/products/{product}/modifiers/{modifier}', [ModifierController::class, 'update'])->name('menus.modifiers.update');
+        Route::delete('/menus/{menu}/categories/{category}/products/{product}/modifiers/{modifier}', [ModifierController::class, 'destroy'])->name('menus.modifiers.destroy');
+        Route::post('/menus/{menu}/categories/{category}/products/{product}/modifiers/reorder', [ModifierController::class, 'reorder'])->name('menus.modifiers.reorder');
     });
 });
 
