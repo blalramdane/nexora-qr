@@ -1,17 +1,96 @@
+@import url('https://fonts.bunny.net/css?family=cairo:400,500,600,700,800,900&display=swap');
 @import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.tsx';
 
 :root {
     font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
     color: #111827;
     background: #f8fafc;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
 }
 
 html {
     direction: rtl;
+    scroll-behavior: smooth;
 }
 
 body {
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
+    background:
+        radial-gradient(circle at 10% 0%, rgba(245, 158, 11, .055), transparent 25rem),
+        radial-gradient(circle at 90% 20%, rgba(15, 23, 42, .045), transparent 30rem),
+        #f8fafc;
+}
+
+button,
+a,
+input {
+    -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+    background: rgba(245, 158, 11, .2);
+}
+
+@keyframes nx-pulse-soft {
+    0%, 100% { transform: scale(.96); opacity: .35; }
+    50% { transform: scale(1.05); opacity: .7; }
+}
+
+@keyframes nx-float {
+    0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+    50% { transform: translate3d(0, -7px, 0) rotate(1deg); }
+}
+
+@keyframes nx-shimmer {
+    0% { transform: translateX(-120%) skewX(-18deg); }
+    100% { transform: translateX(220%) skewX(-18deg); }
+}
+
+.nx-studio-grid {
+    background-image:
+        linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px);
+    background-size: 32px 32px;
+}
+
+.nx-glow {
+    animation: nx-pulse-soft 5s ease-in-out infinite;
+}
+
+.nx-float {
+    animation: nx-float 6s ease-in-out infinite;
+}
+
+.nx-shimmer {
+    position: relative;
+    overflow: hidden;
+}
+
+.nx-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 -40%;
+    width: 30%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+    pointer-events: none;
+}
+
+.nx-shimmer:hover::after {
+    animation: nx-shimmer .9s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .nx-glow,
+    .nx-float { animation: none; }
+    .nx-shimmer:hover::after { animation: none; }
 }
