@@ -7,7 +7,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -22,7 +22,7 @@ jobs:
           extensions: mbstring, sqlite3, pdo_sqlite
           coverage: none
 
-      - name: Refresh Composer lock
+      - name: Refresh Composer dependencies
         working-directory: ai-core
         run: composer update inertiajs/inertia-laravel --with-all-dependencies --no-interaction --prefer-dist
 
@@ -46,15 +46,3 @@ jobs:
       - name: Build frontend
         working-directory: ai-core
         run: npm run build
-
-      - name: Commit refreshed dependency locks
-        run: |
-          if git diff --quiet -- ai-core/composer.lock ai-core/package-lock.json; then
-            echo "Dependency locks are already current."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ai-core/composer.lock ai-core/package-lock.json
-          git commit -m "build: refresh Phase 0 dependency locks"
-          git push
