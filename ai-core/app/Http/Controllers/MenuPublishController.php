@@ -17,7 +17,7 @@ class MenuPublishController extends Controller
             ->findOrFail($menu);
 
         if (!$menuModel->template_id || !$menuModel->template_version_id) {
-            return back()->withErrors(['publish' => 'المنيو لازم يكون مربوط بـ Template Version.']);
+            return to_route('menus.show', $menuModel)->withErrors(['publish' => 'المنيو لازم يكون مربوط بـ Template Version.']);
         }
 
         if (!$menuModel->templateVersion?->is_active) {
