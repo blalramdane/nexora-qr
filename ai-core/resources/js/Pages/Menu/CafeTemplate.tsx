@@ -37,7 +37,7 @@ export default function CafeTemplate({ menu, restaurantName, preview = false }: 
 
     return (
         <>
-            <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-cafe min-h-screen overflow-x-hidden bg-[#0d0907]">
+            <style>{motionCss}@keyframes nxReveal{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}</style><div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-cafe min-h-screen overflow-x-hidden bg-[#0d0907]">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0d0907]/90 backdrop-blur-xl">
                 <div className="mx-auto flex h-[68px] max-w-3xl items-center justify-between px-4">
                     <button type="button" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-xl">☰</button>
@@ -56,7 +56,7 @@ export default function CafeTemplate({ menu, restaurantName, preview = false }: 
 
             <main className="mx-auto max-w-3xl pb-28">
                 <section className="relative px-3 pt-3">
-                    <div className="nx-cafe-hero relative overflow-hidden border border-white/10 shadow-2xl" style={{ borderRadius: '0 0 ' + radius + ' ' + radius }}>
+                    <div className="nx-cafe-hero relative overflow-hidden animate-[nxReveal_.7s_ease-out_both] border border-white/10 shadow-2xl" style={{ borderRadius: '0 0 ' + radius + ' ' + radius }}>
                         <div className="aspect-[0.9] min-h-[390px]">
                             <Image src={imageUrl(hero?.image_path)} alt={hero?.name ?? menu.name} className="h-full w-full object-cover" />
                         </div>
