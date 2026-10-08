@@ -36,7 +36,8 @@ class MenuPublishWorkflowTest extends TestCase
         MenuCategory::query()->where('menu_id', $menu->id)->update(['is_active' => false]);
 
         $this->actingAs($user)->post(route('menus.publish', $menu))
-            ->assertStatus(422);
+            ->assertRedirect(route('menus.show', $menu))
+            ->assertSessionHasErrors('publish');
 
         MenuCategory::query()->where('menu_id', $menu->id)->update(['is_active' => true]);
         Product::query()->where('menu_category_id', MenuCategory::query()->where('menu_id', $menu->id)->value('id'))->update(['is_available' => false]);
