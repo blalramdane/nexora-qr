@@ -7,6 +7,8 @@ const imageUrl = (path?: string | null) =>
     path && (path.startsWith('http') || path.startsWith('/')) ? path : path ? '/storage/' + path : null;
 const radiusMap = { sm: '0.65rem', md: '0.85rem', lg: '1rem', xl: '1.25rem', '2xl': '1.75rem' } as const;
 
+const motionCss = "@keyframes nxAurora{0%,100%{transform:translate3d(0,0,0) scale(1);opacity:.22}50%{transform:translate3d(4%,-3%,0) scale(1.08);opacity:.4}}.nx-fine{background-image:radial-gradient(circle at 50% -8%,rgba(240,223,174,.08),transparent 30%),linear-gradient(180deg,rgba(255,255,255,.012),transparent 32%)}.nx-fine-hero{isolation:isolate;box-shadow:0 35px 100px rgba(0,0,0,.48)}.nx-fine-hero:before{content:'';position:absolute;inset:-15%;z-index:-1;background:radial-gradient(ellipse at 30% 20%,rgba(240,223,174,.13),transparent 38%),radial-gradient(ellipse at 70% 60%,rgba(180,145,70,.08),transparent 40%);filter:blur(28px);animation:nxAurora 9s ease-in-out infinite}.nx-editorial{transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .45s}.nx-editorial:hover{transform:translateY(-5px)}.nx-editorial img{transition:transform .8s cubic-bezier(.2,.8,.2,1),filter .8s}.nx-editorial:hover img{transform:scale(1.045);filter:saturate(1.08) contrast(1.04)}@media(prefers-reduced-motion:reduce){.nx-fine-hero:before{animation:none}.nx-editorial,.nx-editorial img{transition:none}}";
+
 function Image({ src, alt, className }: { src?: string | null; alt: string; className: string }) {
     return src ? <img src={src} alt={alt} className={className} loading="lazy" /> :
         <div className={className + ' flex items-center justify-center bg-[radial-gradient(circle_at_50%_20%,#c8a96b,transparent_32%),linear-gradient(135deg,#181714,#050505)] text-4xl'}>🍽️</div>;
@@ -34,8 +36,7 @@ export default function FineDiningTemplate({ menu, restaurantName, preview = fal
     const selectedVariant = selected?.variants?.find((v: any) => v.id === variant);
     const price = selected ? Number(selected.price) + (selectedVariant?.price ? Number(selectedVariant.price) - Number(selected.price) : Number(selectedVariant?.price_delta ?? 0)) : 0;
 
-    return (
-        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="min-h-screen overflow-x-hidden bg-[#080807]">
+    return (\n        <>\n        <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-fine min-h-screen overflow-x-hidden bg-[#080807]">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-[#080807]/90 backdrop-blur-xl">
                 <div className="mx-auto flex h-[72px] max-w-5xl items-center justify-between px-5">
                     <button type="button" aria-label="القائمة" className="grid h-10 w-10 place-items-center border border-white/10 text-lg text-white/70" style={{ borderRadius: '999px' }}>☰</button>
@@ -49,7 +50,7 @@ export default function FineDiningTemplate({ menu, restaurantName, preview = fal
 
             <main className="mx-auto max-w-5xl pb-28">
                 <section className="px-4 pt-4 sm:px-6">
-                    <div className="relative overflow-hidden border border-white/10 shadow-2xl" style={{ borderRadius }}>
+                    <div className="nx-fine-hero relative overflow-hidden border border-white/10 shadow-2xl" style={{ borderRadius }}>
                         <div className="aspect-[1.05] min-h-[360px] sm:min-h-[500px]">
                             <Image src={imageUrl(hero?.image_path)} alt={hero?.name ?? menu.name} className="h-full w-full object-cover" />
                         </div>
@@ -81,7 +82,7 @@ export default function FineDiningTemplate({ menu, restaurantName, preview = fal
                     </div>
 
                     <div className="mt-7 divide-y divide-white/10">
-                        {(current?.products ?? []).map((product: any) => <button key={product.id} type="button" disabled={!product.is_available} onClick={() => open(product)} className="group flex w-full gap-4 py-5 text-right transition disabled:opacity-35 sm:gap-6">
+                        {(current?.products ?? []).map((product: any) => <button key={product.id} type="button" disabled={!product.is_available} onClick={() => open(product)} className="nx-editorial group flex w-full gap-4 py-5 text-right transition disabled:opacity-35 sm:gap-6">
                             <div className="order-2 h-24 w-24 shrink-0 overflow-hidden sm:h-32 sm:w-32" style={{ borderRadius }}>
                                 <Image src={imageUrl(product.image_path)} alt={product.name} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
                             </div>
