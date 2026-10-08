@@ -26,6 +26,12 @@ type Menu = Omit<RenderableMenu, 'categories'> & {
 export default function MenuBuilder({ menu, template, templates }: { menu: Menu; template: Template | null; templates: Template[] }) {
     const [name, setName] = useState(menu.name);
     const [templateKey, setTemplateKey] = useState(template?.key ?? '');
+    const initialTheme = menu.theme ?? { primary: '#111827', accent: '#f59e0b', background: '#ffffff', foreground: '#111827', radius: 'xl' as const };
+    const [themePrimary, setThemePrimary] = useState(initialTheme.primary);
+    const [themeAccent, setThemeAccent] = useState(initialTheme.accent);
+    const [themeBackground, setThemeBackground] = useState(initialTheme.background);
+    const [themeForeground, setThemeForeground] = useState(initialTheme.foreground);
+    const [themeRadius, setThemeRadius] = useState(initialTheme.radius);
     const [categoryName, setCategoryName] = useState('');
     const [categoryDescription, setCategoryDescription] = useState('');
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -64,6 +70,17 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
     const save = (event: FormEvent) => {
         event.preventDefault();
         router.put('/menus/' + menu.id, { name, template_key: templateKey });
+    };
+
+    const saveTheme = (event: FormEvent) => {
+        event.preventDefault();
+        router.put('/menus/' + menu.id + '/theme', {
+            primary: themePrimary,
+            accent: themeAccent,
+            background: themeBackground,
+            foreground: themeForeground,
+            radius: themeRadius,
+        });
     };
 
     const remove = () => {
@@ -429,6 +446,23 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                             <button type="submit" className="w-full rounded-xl bg-slate-900 px-4 py-2.5 font-bold text-white">حفظ التعديلات</button>
                         </form>
                         <button type="button" onClick={remove} className="mt-3 w-full rounded-xl border border-red-200 px-4 py-2.5 font-bold text-red-600">حذف المنيو</button>
+                    </section>
+
+                    <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-bold text-amber-600">THEME EDITOR</span>
+                                <h2 className="mt-1 text-lg font-black">ألوان وشكل المنيو</h2>
+                            </div>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">Live</span>
+                        </div>
+                        <form onSubmit={saveTheme} className="mt-4 space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                                <label className="rounded-xl border border-slate-200 p-2"><span className="mb-1 block text-[10px] font-black text-slate-500">primary</span><div className="flex items-center gap-2"><input type="color" value={themePrimary} onChange={(e) => setThemePrimary(e.target.value)} className="h-9 w-10 rounded-lg border-0 bg-transparent p-0" /><input value={themePrimary} onChange={(e) => setThemePrimary(e.target.value)} maxLength={7} className="min-w-0 flex-1 rounded-lg border px-2 py-1.5 text-xs font-mono uppercase" /></div></label><label className="rounded-xl border border-slate-200 p-2"><span className="mb-1 block text-[10px] font-black text-slate-500">accent</span><div className="flex items-center gap-2"><input type="color" value={themeAccent} onChange={(e) => setThemeAccent(e.target.value)} className="h-9 w-10 rounded-lg border-0 bg-transparent p-0" /><input value={themeAccent} onChange={(e) => setThemeAccent(e.target.value)} maxLength={7} className="min-w-0 flex-1 rounded-lg border px-2 py-1.5 text-xs font-mono uppercase" /></div></label><label className="rounded-xl border border-slate-200 p-2"><span className="mb-1 block text-[10px] font-black text-slate-500">background</span><div className="flex items-center gap-2"><input type="color" value={themeBackground} onChange={(e) => setThemeBackground(e.target.value)} className="h-9 w-10 rounded-lg border-0 bg-transparent p-0" /><input value={themeBackground} onChange={(e) => setThemeBackground(e.target.value)} maxLength={7} className="min-w-0 flex-1 rounded-lg border px-2 py-1.5 text-xs font-mono uppercase" /></div></label><label className="rounded-xl border border-slate-200 p-2"><span className="mb-1 block text-[10px] font-black text-slate-500">foreground</span><div className="flex items-center gap-2"><input type="color" value={themeForeground} onChange={(e) => setThemeForeground(e.target.value)} className="h-9 w-10 rounded-lg border-0 bg-transparent p-0" /><input value={themeForeground} onChange={(e) => setThemeForeground(e.target.value)} maxLength={7} className="min-w-0 flex-1 rounded-lg border px-2 py-1.5 text-xs font-mono uppercase" /></div></label>
+                            </div>
+                            <label className="block"><span className="mb-1 block text-[10px] font-black text-slate-500">زوايا العناصر</span><select value={themeRadius} onChange={(e) => setThemeRadius(e.target.value as typeof themeRadius)} className="w-full rounded-xl border px-3 py-2 text-sm"><option value="sm">ناعمة</option><option value="md">متوسطة</option><option value="lg">دائرية</option><option value="xl">Premium</option><option value="2xl">Extra Round</option></select></label>
+                            <button type="submit" className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white">حفظ الـTheme</button>
+                        </form>
                     </section>
 
                     <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
