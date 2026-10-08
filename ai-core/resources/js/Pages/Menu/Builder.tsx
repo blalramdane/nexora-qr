@@ -104,20 +104,6 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
 
 
 
-    const togglePublish = () => {
-        const action = menu.is_published ? 'unpublish' : 'publish';
-        if (action === 'unpublish' || window.confirm('نشر المنيو؟ هيبقى متاح للـPublic Menu بعد تنفيذ خطوة الـPublic Menu.')) {
-            router.post('/menus/' + menu.id + '/' + action);
-        }
-    };
-
-    const togglePublish = () => {
-        const action = menu.is_published ? 'unpublish' : 'publish';
-        if (action === 'unpublish' || window.confirm('نشر المنيو؟ هيبقى متاح للـPublic Menu بعد تنفيذ خطوة الـPublic Menu.')) {
-            router.post('/menus/' + menu.id + '/' + action);
-        }
-    };
-
     const addCategory = (event: FormEvent) => {
         event.preventDefault();
         if (!categoryName.trim()) return;
