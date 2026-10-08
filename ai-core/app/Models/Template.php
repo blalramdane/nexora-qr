@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Template extends Model
 {
@@ -22,8 +23,9 @@ class Template extends Model
         return $this->hasMany(TemplateVersion::class);
     }
 
-    public function activeVersion(): HasMany
+    public function activeVersion(): HasOne
     {
-        return $this->hasMany(TemplateVersion::class)->where('is_active', true)->latestOfMany('version');
+        return $this->hasOne(TemplateVersion::class)
+            ->ofMany('version', 'max', fn ($query) => $query->where('is_active', true));
     }
 }
