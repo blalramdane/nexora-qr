@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import React, { FormEvent, useState } from 'react';
+import React, { FormEvent, useEffect, useState } from 'react';
 import TemplateRenderer from './TemplateRenderer';
 
 type Template = { id: number; key: string; name: string };
@@ -47,7 +47,11 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
     const [productFeatured, setProductFeatured] = useState(false);
     const [editingProductId, setEditingProductId] = useState<number | null>(null);
     const [editingProductName, setEditingProductName] = useState('');
+    const [editingProductDescription, setEditingProductDescription] = useState('');
     const [editingProductPrice, setEditingProductPrice] = useState('');
+    const [editingProductImage, setEditingProductImage] = useState('');
+    const [editingProductFeatured, setEditingProductFeatured] = useState(false);
+    const [editingProductImagePreview, setEditingProductImagePreview] = useState<string | null>(null);
     const [variantProductId, setVariantProductId] = useState<number | null>(null);
     const [variantName, setVariantName] = useState('');
     const [variantPricingMode, setVariantPricingMode] = useState<'fixed' | 'delta'>('fixed');
@@ -116,6 +120,12 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
         }
         : null;
 
+    const editingProductContext = editingProductId
+        ? menu.categories.find((category) => category.products.some((product) => product.id === editingProductId)) ?? null
+        : null;
+
+    const previewCategoryId = editingProductContext?.id ?? productCategoryId ?? undefined;
+
     const previewMenu: Menu = {
         ...menu,
         name,
@@ -127,11 +137,31 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
             foreground: themeForeground,
             radius: themeRadius,
         },
-        categories: menu.categories.map((category) =>
-            category.id === productCategoryId && previewDraftProduct
-                ? { ...category, products: [previewDraftProduct, ...category.products] }
-                : category,
-        ),
+        categories: menu.categories.map((category) => {
+            if (editingProductId && editingProductContext?.id === category.id) {
+                return {
+                    ...category,
+                    products: category.products.map((product) =>
+                        product.id === editingProductId
+                            ? {
+                                ...product,
+                                name: editingProductName.trim() || product.name,
+                                description: editingProductDescription.trim() || null,
+                                price: editingProductPrice || product.price,
+                                image_path: editingProductImagePreview || editingProductImage.trim() || product.image_path || null,
+                                is_featured: editingProductFeatured,
+                            }
+                            : product,
+                    ),
+                };
+            }
+
+            if (category.id === productCategoryId && previewDraftProduct) {
+                return { ...category, products: [previewDraftProduct, ...category.products] };
+            }
+
+            return category;
+        }),
     };
 
     const [previewDevice, setPreviewDevice] = useState<'mobile' | 'tablet' | 'desktop'>('mobile');
@@ -206,25 +236,57 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
         });
     };
 
-    const uploadProductImage = (event: React.ChangeEvent<HTMLInputElement>, categoryId: number, productId: number) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+    const uploadProductImage = (file: File, categoryId: number, productId: number) => {
+        if (!file.type.startsWith('image/')) return;
+        if (file.size > 5 * 1024 * 1024) return;
+
+        const localPreview = URL.createObjectURL(file);
+        setEditingProductImagePreview(localPreview);
+
         router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/image', { image: file }, {
             forceFormData: true,
+            onSuccess: () => {
+                setEditingProductImage('');
+            },
         });
+    };
+
+    const handleProductImageInput = (event: React.ChangeEvent<HTMLInputElement>, categoryId: number, productId: number) => {
+        const file = event.target.files?.[0];
+        if (file) uploadProductImage(file, categoryId, productId);
         event.target.value = '';
+    };
+
+    const handleProductImageDrop = (event: React.DragEvent<HTMLDivElement>, categoryId: number, productId: number) => {
+        event.preventDefault();
+        const file = event.dataTransfer.files?.[0];
+        if (file) uploadProductImage(file, categoryId, productId);
     };
 
     const removeProductImage = (categoryId: number, productId: number) => {
         if (window.confirm('حذف صورة المنتج؟')) {
-            router.delete('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/image');
+            router.delete('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/image', {
+                onSuccess: () => {
+                    setEditingProductImagePreview(null);
+                    setEditingProductImage('');
+                },
+            });
         }
     };
 
     const startEditingProduct = (product: Category['products'][number]) => {
         setEditingProductId(product.id);
         setEditingProductName(product.name);
+        setEditingProductDescription(product.description ?? '');
         setEditingProductPrice(product.price);
+        setEditingProductImage(product.image_path ?? '');
+        setEditingProductFeatured(product.is_featured);
+        setEditingProductImagePreview(null);
+    };
+
+    const closeEditingProduct = () => {
+        setEditingProductId(null);
+        setEditingProductImagePreview(null);
     };
 
     const saveProduct = (event: FormEvent, categoryId: number, productId: number) => {
@@ -233,15 +295,21 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
         const product = menu.categories.find(c => c.id === categoryId)?.products.find(p => p.id === productId);
         if (!product) return;
         router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId, {
-            name: editingProductName,
-            description: product.description ?? null,
+            name: editingProductName.trim(),
+            description: editingProductDescription.trim() || null,
             price: editingProductPrice,
-            image_path: product.image_path ?? null,
+            image_path: editingProductImage.trim() || product.image_path || null,
             is_available: product.is_available,
-            is_featured: product.is_featured,
+            is_featured: editingProductFeatured,
             sort_order: product.sort_order,
-        }, { onSuccess: () => setEditingProductId(null) });
+        }, { onSuccess: closeEditingProduct });
     };
+
+    useEffect(() => {
+        return () => {
+            if (editingProductImagePreview) URL.revokeObjectURL(editingProductImagePreview);
+        };
+    }, [editingProductImagePreview]);
 
     const toggleProduct = (category: Category, product: Category['products'][number]) => {
         router.put('/menus/' + menu.id + '/categories/' + category.id + '/products/' + product.id, {
@@ -612,10 +680,48 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                                             <React.Fragment key={product.id}>
                                             <div draggable onDragStart={(e) => beginDrag(e, 'product', product.id, category.id)} onDragOver={(e) => allowDrop(e, 'product', product.id)} onDrop={(e) => { e.preventDefault(); reorderProductsByDrop(category, product.id); }} onDragEnd={finishDrag} className={'rounded-xl bg-slate-50 p-3 cursor-grab active:cursor-grabbing ' + (dragOver?.type === 'product' && dragOver.id === product.id ? 'ring-2 ring-amber-400 ' : '')}>
                                                 {editingProductId === product.id ? (
-                                                    <form onSubmit={(e) => saveProduct(e, category.id, product.id)} className="grid grid-cols-[1fr_7rem_auto] gap-2">
-                                                        <input value={editingProductName} onChange={(e) => setEditingProductName(e.target.value)} required className="rounded-lg border px-2 py-1.5 text-sm" />
-                                                        <input value={editingProductPrice} onChange={(e) => setEditingProductPrice(e.target.value)} type="number" min="0" step="0.01" required className="rounded-lg border px-2 py-1.5 text-sm" />
-                                                        <button type="submit" className="rounded-lg bg-slate-900 px-3 text-xs font-bold text-white">حفظ</button>
+                                                    <form onSubmit={(e) => saveProduct(e, category.id, product.id)} className="space-y-3">
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                                                                {(editingProductImagePreview || (editingProductImage && (editingProductImage.startsWith('http') || editingProductImage.startsWith('/') ? editingProductImage : '/storage/' + editingProductImage))) ? (
+                                                                    <img src={editingProductImagePreview || (editingProductImage.startsWith('http') || editingProductImage.startsWith('/') ? editingProductImage : '/storage/' + editingProductImage)} alt="" className="h-full w-full object-cover" />
+                                                                ) : (
+                                                                    <div className="flex h-full w-full items-center justify-center text-2xl">🍽️</div>
+                                                                )}
+                                                                <span className="absolute bottom-1 right-1 rounded-full bg-slate-950/75 px-1.5 py-0.5 text-[8px] font-black text-white">LIVE</span>
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <input value={editingProductName} onChange={(e) => setEditingProductName(e.target.value)} placeholder="اسم المنتج" required className="w-full rounded-lg border px-3 py-2 text-sm font-bold" />
+                                                                <div className="mt-2 grid grid-cols-[1fr_7rem] gap-2">
+                                                                    <input value={editingProductDescription} onChange={(e) => setEditingProductDescription(e.target.value)} placeholder="وصف المنتج" maxLength={2000} className="rounded-lg border px-3 py-2 text-xs" />
+                                                                    <input value={editingProductPrice} onChange={(e) => setEditingProductPrice(e.target.value)} type="number" min="0" step="0.01" required placeholder="السعر" className="rounded-lg border px-3 py-2 text-sm" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                                                            <label
+                                                                onDragOver={(e) => e.preventDefault()}
+                                                                onDrop={(e) => handleProductImageDrop(e, category.id, product.id)}
+                                                                className="flex min-h-16 cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed border-slate-300 bg-white px-3 py-2 hover:border-amber-400 hover:bg-amber-50/40"
+                                                            >
+                                                                <div className="min-w-0">
+                                                                    <p className="text-xs font-black">اسحب الصورة هنا أو اختار ملف</p>
+                                                                    <p className="mt-0.5 text-[10px] text-slate-400">JPG / PNG / WebP · حتى 5MB · المعاينة فورية</p>
+                                                                </div>
+                                                                <span className="shrink-0 rounded-lg bg-slate-900 px-2.5 py-1.5 text-[10px] font-black text-white">اختيار صورة</span>
+                                                                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handleProductImageInput(e, category.id, product.id)} />
+                                                            </label>
+                                                            <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+                                                                <label className="flex items-center gap-2 text-xs font-bold">
+                                                                    <input type="checkbox" checked={editingProductFeatured} onChange={(e) => setEditingProductFeatured(e.target.checked)} />
+                                                                    ⭐ مميز
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button type="submit" className="flex-1 rounded-lg bg-slate-900 px-3 py-2.5 text-xs font-black text-white">حفظ التعديلات</button>
+                                                            <button type="button" onClick={closeEditingProduct} className="rounded-lg border px-3 py-2.5 text-xs font-bold">إلغاء</button>
+                                                        </div>
                                                     </form>
                                                 ) : (
                                                     <div className="space-y-2">
@@ -791,7 +897,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                                 <div className={previewDevice === 'mobile' ? 'overflow-hidden rounded-[2.5rem] border-[8px] border-slate-900 bg-black shadow-2xl' : 'overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-2xl'}>
                                     {previewDevice === 'mobile' && <div className="flex h-7 items-center justify-center bg-slate-900"><div className="h-1.5 w-20 rounded-full bg-white/20" /></div>}
                                     <div className={previewDevice === 'mobile' ? 'max-h-[720px] overflow-y-auto' : 'max-h-[760px] overflow-y-auto'}>
-                                        <TemplateRenderer menu={previewMenu} restaurantName="NEXORA Preview" preview previewCategoryId={productCategoryId ?? undefined} />
+                                        <TemplateRenderer menu={previewMenu} restaurantName="NEXORA Preview" preview previewCategoryId={previewCategoryId} />
                                     </div>
                                 </div>
                             </div>
