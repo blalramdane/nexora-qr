@@ -1,28 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
-type Variant = { id: number; name: string; price?: string | null; price_delta?: string | null; is_active?: boolean };
-type Modifier = { id: number; name: string; price_delta: string; is_required: boolean; is_active: boolean };
-type Product = {
-    id: number;
-    name: string;
-    description?: string | null;
-    price: string;
-    image_path?: string | null;
-    is_available: boolean;
-    is_featured: boolean;
-    variants?: Variant[];
-    modifiers?: Modifier[];
+type Props = {
+    menu: any;
+    restaurantName: string;
+    preview?: boolean;
 };
-type Category = { id: number; name: string; description?: string | null; products: Product[] };
-type Theme = { primary: string; accent: string; background: string; foreground: string; radius: 'sm' | 'md' | 'lg' | 'xl' | '2xl' };
-type Menu = {
-    name: string;
-    categories: Category[];
-    theme?: Theme | null;
-    template?: { key: string; name: string } | null;
-    templateVersion?: { version: number; schema?: Record<string, unknown> } | null;
-};
-type Props = { menu: Menu; restaurantName: string; preview?: boolean };
 
 const money = (value: string | number) => Number(value).toFixed(0) + ' ج.م';
 const imageUrl = (path?: string | null) =>
@@ -33,37 +15,35 @@ function ImageOrFallback({ src, alt, className }: { src?: string | null; alt: st
     return src ? (
         <img src={src} alt={alt} className={className} loading="lazy" />
     ) : (
-        <div className={className + ' flex items-center justify-center bg-[radial-gradient(circle_at_30%_20%,#6d4a20,transparent_38%),linear-gradient(135deg,#191512,#050505)] text-4xl'}>
-            🍔
-        </div>
+        <div className={className + ' flex items-center justify-center bg-[radial-gradient(circle_at_30%_20%,#6d4a20,transparent_38%),linear-gradient(135deg,#191512,#050505)] text-4xl'}>🍔</div>
     );
 }
 
 export default function FastFoodTemplate({ menu, restaurantName, preview = false }: Props) {
-    const theme: Theme = menu.theme ?? {
+    const theme = menu.theme ?? {
         primary: '#c9953c',
         accent: '#e7b55d',
         background: '#090807',
         foreground: '#f8efe0',
         radius: 'xl',
     };
-    const radius = radiusMap[theme.radius];
-    const categories = menu.categories;
+    const radius = radiusMap[theme.radius as keyof typeof radiusMap] ?? radiusMap.xl;
+    const categories = menu.categories ?? [];
     const [activeCategoryId, setActiveCategoryId] = useState<number | undefined>(categories[0]?.id);
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
     const [quantity, setQuantity] = useState(1);
 
-    const activeCategory = categories.find((category) => category.id === activeCategoryId) ?? categories[0];
-    const allProducts = categories.flatMap((category) => category.products);
+    const activeCategory = categories.find((category: any) => category.id === activeCategoryId) ?? categories[0];
+    const allProducts = categories.flatMap((category: any) => category.products ?? []);
     const heroProduct =
-        allProducts.find((product) => product.is_featured && product.is_available) ??
-        allProducts.find((product) => product.is_available) ??
+        allProducts.find((product: any) => product.is_featured && product.is_available) ??
+        allProducts.find((product: any) => product.is_available) ??
         allProducts[0];
 
-    const openProduct = (product: Product) => {
+    const openProduct = (product: any) => {
         setSelectedProduct(product);
-        setSelectedVariantId(product.variants?.find((variant) => variant.is_active !== false)?.id ?? null);
+        setSelectedVariantId(product.variants?.find((variant: any) => variant.is_active !== false)?.id ?? null);
         setQuantity(1);
     };
     const closeProduct = () => {
@@ -72,11 +52,14 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
         setQuantity(1);
     };
 
-    const selectedVariant = selectedProduct?.variants?.find((variant) => variant.id === selectedVariantId);
-    const variantDelta = selectedVariant?.price
-        ? Number(selectedVariant.price) - Number(selectedProduct?.price ?? 0)
-        : Number(selectedVariant?.price_delta ?? 0);
-    const selectedPrice = Number(selectedProduct?.price ?? 0) + variantDelta;
+    const selectedVariant = selectedProduct?.variants?.find((variant: any) => variant.id === selectedVariantId);
+    const selectedPrice = selectedProduct
+        ? Number(selectedProduct.price) + (
+            selectedVariant?.price
+                ? Number(selectedVariant.price) - Number(selectedProduct.price)
+                : Number(selectedVariant?.price_delta ?? 0)
+        )
+        : 0;
 
     return (
         <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="min-h-screen overflow-x-hidden bg-[#090807]">
@@ -98,7 +81,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
             </header>
 
             <main className="mx-auto max-w-3xl pb-28">
-                <section className="relative overflow-hidden px-3 pt-3">
+                <section className="px-3 pt-3">
                     <div className="relative overflow-hidden border border-white/10 shadow-2xl" style={{ borderRadius: '0 0 ' + radius + ' ' + radius }}>
                         <div className="aspect-[0.9] min-h-[390px]">
                             <ImageOrFallback src={imageUrl(heroProduct?.image_path)} alt={heroProduct?.name ?? menu.name} className="h-full w-full object-cover" />
@@ -114,15 +97,12 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
 
                 <section className="px-4 pt-7">
                     <div className="mb-4 flex items-end justify-between">
-                        <div>
-                            <p className="text-[9px] uppercase tracking-[0.32em] text-white/35">Explore</p>
-                            <h2 className="mt-1 text-xl font-black">اختار اللي نفسك فيه</h2>
-                        </div>
+                        <div><p className="text-[9px] uppercase tracking-[0.32em] text-white/35">Explore</p><h2 className="mt-1 text-xl font-black">اختار اللي نفسك فيه</h2></div>
                         <span className="text-[10px] text-white/35">{categories.length} أقسام</span>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                        {categories.slice(0, 4).map((category) => {
-                            const tileProduct = category.products.find((product) => product.image_path) ?? category.products[0];
+                        {categories.slice(0, 4).map((category: any) => {
+                            const tileProduct = category.products?.find((product: any) => product.image_path) ?? category.products?.[0];
                             return (
                                 <button key={category.id} type="button" onClick={() => {
                                     setActiveCategoryId(category.id);
@@ -131,7 +111,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
                                     <ImageOrFallback src={imageUrl(tileProduct?.image_path)} alt={category.name} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
                                     <div className="absolute inset-x-0 bottom-0 p-3">
-                                        <p className="text-[9px] uppercase tracking-[0.24em]" style={{ color: theme.accent }}>{category.products.length} ITEMS</p>
+                                        <p className="text-[9px] uppercase tracking-[0.24em]" style={{ color: theme.accent }}>{category.products?.length ?? 0} ITEMS</p>
                                         <h3 className="mt-1 text-base font-black text-white">{category.name}</h3>
                                         <span className="mt-2 inline-flex h-7 w-7 items-center justify-center rounded-full text-black" style={{ backgroundColor: theme.accent }}>←</span>
                                     </div>
@@ -143,15 +123,11 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
 
                 <section id="fast-food-menu" className="scroll-mt-20 px-4 pt-9">
                     <div className="mb-4 flex items-end justify-between">
-                        <div>
-                            <p className="text-[9px] uppercase tracking-[0.32em] text-white/35">Menu</p>
-                            <h2 className="mt-1 text-2xl font-black">{activeCategory?.name ?? 'القائمة'}</h2>
-                        </div>
-                        <span className="text-[10px] text-white/35">{activeCategory?.products.length ?? 0} اختيار</span>
+                        <div><p className="text-[9px] uppercase tracking-[0.32em] text-white/35">Menu</p><h2 className="mt-1 text-2xl font-black">{activeCategory?.name ?? 'القائمة'}</h2></div>
+                        <span className="text-[10px] text-white/35">{activeCategory?.products?.length ?? 0} اختيار</span>
                     </div>
-
                     <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]">
-                        {categories.map((category) => (
+                        {categories.map((category: any) => (
                             <button key={category.id} type="button" onClick={() => setActiveCategoryId(category.id)} className="shrink-0 border px-4 py-2 text-xs font-bold transition" style={{
                                 borderRadius: 999,
                                 borderColor: activeCategoryId === category.id ? theme.accent : 'rgba(255,255,255,0.1)',
@@ -162,7 +138,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
                     </div>
 
                     <div className="mt-5 space-y-2.5">
-                        {(activeCategory?.products ?? []).map((product) => (
+                        {(activeCategory?.products ?? []).map((product: any) => (
                             <button key={product.id} type="button" disabled={!product.is_available} onClick={() => openProduct(product)} className="group flex w-full items-center gap-3 border border-white/10 bg-white/[0.035] p-2 text-right shadow-lg transition active:scale-[0.99] disabled:opacity-45" style={{ borderRadius: radius }}>
                                 <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[0.85rem] bg-black/40">
                                     <ImageOrFallback src={imageUrl(product.image_path)} alt={product.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
@@ -181,25 +157,16 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
                                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border text-lg font-light text-black transition group-hover:scale-105" style={{ backgroundColor: theme.accent, borderColor: theme.accent }}>+</span>
                             </button>
                         ))}
-                        {(activeCategory?.products.length ?? 0) === 0 && <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-white/35">القسم ده لسه مفيهوش منتجات.</div>}
+                        {(activeCategory?.products?.length ?? 0) === 0 && <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-white/35">القسم ده لسه مفيهوش منتجات.</div>}
                     </div>
                 </section>
 
-                <section className="px-4 pb-4 pt-12 text-center">
-                    <div className="mx-auto h-px w-20" style={{ backgroundColor: theme.accent }} />
-                    <p className="mt-4 font-serif text-sm tracking-[0.32em] text-white/30">MADE TO CRAVE</p>
-                </section>
+                <section className="px-4 pb-4 pt-12 text-center"><div className="mx-auto h-px w-20" style={{ backgroundColor: theme.accent }} /><p className="mt-4 font-serif text-sm tracking-[0.32em] text-white/30">MADE TO CRAVE</p></section>
             </main>
 
             <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-4 pb-4">
                 <div className="pointer-events-auto mx-auto flex max-w-3xl items-center gap-3 border border-white/10 bg-[#0d0b09]/94 p-2 shadow-2xl backdrop-blur-xl" style={{ borderRadius: radius }}>
-                    <div className="flex min-w-0 flex-1 items-center gap-3 px-2">
-                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: theme.accent + '18', color: theme.accent }}>🛒</div>
-                        <div className="min-w-0">
-                            <p className="text-[9px] uppercase tracking-widest text-white/35">Your order</p>
-                            <p className="truncate text-xs font-bold text-white">السلة فارغة</p>
-                        </div>
-                    </div>
+                    <div className="flex min-w-0 flex-1 items-center gap-3 px-2"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: theme.accent + '18', color: theme.accent }}>🛒</div><div className="min-w-0"><p className="text-[9px] uppercase tracking-widest text-white/35">Your order</p><p className="truncate text-xs font-bold text-white">السلة فارغة</p></div></div>
                     <button type="button" className="rounded-xl px-5 py-3 text-xs font-black text-black shadow-lg transition active:scale-95" style={{ backgroundColor: theme.accent }}>ابدأ الطلب</button>
                 </div>
             </div>
@@ -207,76 +174,22 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
             {selectedProduct && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={closeProduct}>
                     <div dir="rtl" role="dialog" aria-modal="true" aria-label={selectedProduct.name} className="max-h-[92vh] w-full max-w-lg overflow-y-auto border border-white/10 bg-[#100d0b] shadow-2xl sm:max-h-[88vh]" style={{ borderRadius: radius + ' ' + radius + ' 0 0' }} onClick={(event) => event.stopPropagation()}>
-                        <div className="relative">
-                            <div className="aspect-[1.15]">
-                                <ImageOrFallback src={imageUrl(selectedProduct.image_path)} alt={selectedProduct.name} className="h-full w-full object-cover" />
-                            </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#100d0b] via-transparent to-black/20" />
-                            <button type="button" onClick={closeProduct} className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-black/50 text-lg text-white backdrop-blur" aria-label="إغلاق">×</button>
-                        </div>
-
+                        <div className="relative"><div className="aspect-[1.15]"><ImageOrFallback src={imageUrl(selectedProduct.image_path)} alt={selectedProduct.name} className="h-full w-full object-cover" /></div><div className="absolute inset-0 bg-gradient-to-t from-[#100d0b] via-transparent to-black/20" /><button type="button" onClick={closeProduct} className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-black/50 text-lg text-white backdrop-blur" aria-label="إغلاق">×</button></div>
                         <div className="px-5 pb-5">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <h2 className="text-2xl font-black text-white">{selectedProduct.name}</h2>
-                                    {selectedProduct.description && <p className="mt-2 text-xs leading-6 text-white/45">{selectedProduct.description}</p>}
-                                </div>
-                                <strong className="shrink-0 text-lg" style={{ color: theme.accent }}>{money(selectedPrice)}</strong>
-                            </div>
-
-                            {(selectedProduct.variants?.filter((variant) => variant.is_active !== false).length ?? 0) > 0 && (
-                                <div className="mt-6">
-                                    <div className="mb-2 flex items-center justify-between">
-                                        <h3 className="text-sm font-black">اختار الحجم / النوع</h3>
-                                        <span className="text-[9px] text-white/35">اختياري</span>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        {selectedProduct.variants?.filter((variant) => variant.is_active !== false).map((variant) => {
-                                            const active = selectedVariantId === variant.id;
-                                            const variantPrice = variant.price
-                                                ? money(variant.price)
-                                                : (Number(variant.price_delta ?? 0) >= 0 ? '+' : '') + money(variant.price_delta ?? 0);
-                                            return (
-                                                <button key={variant.id} type="button" onClick={() => setSelectedVariantId(active ? null : variant.id)} className="flex items-center justify-between border p-3 text-right" style={{
-                                                    borderRadius: radius,
-                                                    borderColor: active ? theme.accent : 'rgba(255,255,255,0.08)',
-                                                    backgroundColor: active ? theme.accent + '12' : 'rgba(255,255,255,0.03)',
-                                                }}>
-                                                    <span className="text-xs font-bold">{variant.name}</span>
-                                                    <span className="text-xs" style={{ color: theme.accent }}>{variantPrice}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+                            <div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-black text-white">{selectedProduct.name}</h2>{selectedProduct.description && <p className="mt-2 text-xs leading-6 text-white/45">{selectedProduct.description}</p>}</div><strong className="shrink-0 text-lg" style={{ color: theme.accent }}>{money(selectedPrice)}</strong></div>
+                            {(selectedProduct.variants?.filter((variant: any) => variant.is_active !== false).length ?? 0) > 0 && (
+                                <div className="mt-6"><h3 className="mb-2 text-sm font-black">اختار الحجم / النوع</h3><div className="grid gap-2">{selectedProduct.variants?.filter((variant: any) => variant.is_active !== false).map((variant: any) => {
+                                    const active = selectedVariantId === variant.id;
+                                    const variantPrice = variant.price ? money(variant.price) : (Number(variant.price_delta ?? 0) >= 0 ? '+' : '') + money(variant.price_delta ?? 0);
+                                    return <button key={variant.id} type="button" onClick={() => setSelectedVariantId(active ? null : variant.id)} className="flex items-center justify-between border p-3 text-right" style={{ borderRadius: radius, borderColor: active ? theme.accent : 'rgba(255,255,255,0.08)', backgroundColor: active ? theme.accent + '12' : 'rgba(255,255,255,0.03)' }}><span className="text-xs font-bold">{variant.name}</span><span className="text-xs" style={{ color: theme.accent }}>{variantPrice}</span></button>;
+                                })}</div></div>
                             )}
-
-                            {(selectedProduct.modifiers?.filter((modifier) => modifier.is_active).length ?? 0) > 0 && (
-                                <div className="mt-6">
-                                    <h3 className="mb-2 text-sm font-black">الإضافات</h3>
-                                    <div className="space-y-2">
-                                        {selectedProduct.modifiers?.filter((modifier) => modifier.is_active).map((modifier) => (
-                                            <div key={modifier.id} className="flex items-center justify-between border border-white/8 bg-white/[0.03] p-3" style={{ borderRadius: radius }}>
-                                                <div>
-                                                    <p className="text-xs font-bold">{modifier.name}</p>
-                                                    <p className="mt-0.5 text-[9px] text-white/35">{modifier.is_required ? 'مطلوب' : 'اختياري'}</p>
-                                                </div>
-                                                <span className="text-xs" style={{ color: theme.accent }}>{Number(modifier.price_delta) >= 0 ? '+' : ''}{money(modifier.price_delta)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                            {(selectedProduct.modifiers?.filter((modifier: any) => modifier.is_active).length ?? 0) > 0 && (
+                                <div className="mt-6"><h3 className="mb-2 text-sm font-black">الإضافات</h3><div className="space-y-2">{selectedProduct.modifiers?.filter((modifier: any) => modifier.is_active).map((modifier: any) => <div key={modifier.id} className="flex items-center justify-between border border-white/8 bg-white/[0.03] p-3" style={{ borderRadius: radius }}><div><p className="text-xs font-bold">{modifier.name}</p><p className="mt-0.5 text-[9px] text-white/35">{modifier.is_required ? 'مطلوب' : 'اختياري'}</p></div><span className="text-xs" style={{ color: theme.accent }}>{Number(modifier.price_delta) >= 0 ? '+' : ''}{money(modifier.price_delta)}</span></div>)}</div></div>
                             )}
-
                             <div className="mt-7 flex items-center gap-3">
-                                <div className="flex items-center rounded-xl border border-white/10 bg-white/[0.04] p-1">
-                                    <button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))} className="grid h-9 w-9 place-items-center rounded-lg text-lg">−</button>
-                                    <span className="w-8 text-center text-sm font-black">{quantity}</span>
-                                    <button type="button" onClick={() => setQuantity((value) => value + 1)} className="grid h-9 w-9 place-items-center rounded-lg text-lg">+</button>
-                                </div>
-                                <button type="button" className="flex-1 px-4 py-3.5 text-sm font-black text-black shadow-lg" style={{ backgroundColor: theme.accent, borderRadius: radius }} onClick={closeProduct}>
-                                    إضافة للطلب · {money(selectedPrice * quantity)}
-                                </button>
+                                <div className="flex items-center rounded-xl border border-white/10 bg-white/[0.04] p-1"><button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))} className="grid h-9 w-9 place-items-center rounded-lg text-lg">−</button><span className="w-8 text-center text-sm font-black">{quantity}</span><button type="button" onClick={() => setQuantity((value) => value + 1)} className="grid h-9 w-9 place-items-center rounded-lg text-lg">+</button></div>
+                                <button type="button" className="flex-1 px-4 py-3.5 text-sm font-black text-black shadow-lg" style={{ backgroundColor: theme.accent, borderRadius: radius }} onClick={closeProduct}>إضافة للطلب · {money(selectedPrice * quantity)}</button>
                             </div>
                         </div>
                     </div>
