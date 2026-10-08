@@ -35,7 +35,9 @@ export default function CafeTemplate({ menu, restaurantName, preview = false }: 
     const selectedVariant = selected?.variants?.find((v: any) => v.id === variant);
     const price = selected ? Number(selected.price) + (selectedVariant?.price ? Number(selectedVariant.price) - Number(selected.price) : Number(selectedVariant?.price_delta ?? 0)) : 0;
 
-    return (\n        <>\n        <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-cafe min-h-screen overflow-x-hidden bg-[#0d0907]">
+    return (
+        <>
+            <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-cafe min-h-screen overflow-x-hidden bg-[#0d0907]">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0d0907]/90 backdrop-blur-xl">
                 <div className="mx-auto flex h-[68px] max-w-3xl items-center justify-between px-4">
                     <button type="button" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-xl">☰</button>
@@ -132,5 +134,6 @@ export default function CafeTemplate({ menu, restaurantName, preview = false }: 
                 </div>
             </div>}
         </div>
+        </>
     );
 }
