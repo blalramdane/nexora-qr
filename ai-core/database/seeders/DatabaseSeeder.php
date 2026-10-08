@@ -51,6 +51,17 @@ class DatabaseSeeder extends Seeder
                 );
 
                 $versionTwo->activate();
+            } elseif ($data['key'] === 'fine-dining') {
+                $versionTwo = $template->versions()->updateOrCreate(
+                    ['version' => 2],
+                    ['schema' => [
+                        'layout' => 'editorial-hero-curated-menu-detail',
+                        'components' => ['minimal_header', 'hero', 'story_strip', 'category_nav', 'editorial_product_list', 'cart_bar', 'product_sheet'],
+                        'visual' => ['direction' => 'rtl', 'surface' => 'dark', 'accent' => 'champagne-gold', 'mobile_first' => true, 'typography' => 'serif'],
+                    ], 'is_active' => true]
+                );
+
+                $versionTwo->activate();
             } else {
                 $versionOne->activate();
             }
