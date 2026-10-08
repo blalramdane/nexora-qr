@@ -13,7 +13,7 @@ type Category = {
     products: Array<{ id: number; name: string; description?: string | null; price: string; image_path?: string | null; is_available: boolean; is_featured: boolean; variants?: Array<{ id: number; name: string; price?: string | null; price_delta?: string }> }>;
 };
 type RenderableMenu = Parameters<typeof TemplateRenderer>[0]['menu'];
-type Menu = RenderableMenu & {
+type Menu = Omit<RenderableMenu, 'categories'> & {
     id: number;
     slug: string;
     is_published: boolean;
