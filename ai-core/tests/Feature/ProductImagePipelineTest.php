@@ -27,8 +27,7 @@ class ProductImagePipelineTest extends TestCase
             ->post($this->url($menu, $category, $product), [
                 'image' => UploadedFile::fake()->image('burger.jpg', 1200, 800),
             ])
-            ->assertOk()
-            ->assertJsonStructure(['path', 'url']);
+            ->assertRedirect("/menus/{$menu->id}");
 
         $path = $product->fresh()->image_path;
         $this->assertNotNull($path);
@@ -39,7 +38,7 @@ class ProductImagePipelineTest extends TestCase
             ->post($this->url($menu, $category, $product), [
                 'image' => UploadedFile::fake()->image('burger-new.png', 900, 900),
             ])
-            ->assertOk();
+            ->assertRedirect("/menus/{$menu->id}");
 
         $newPath = $product->fresh()->image_path;
         $this->assertNotSame($path, $newPath);
@@ -48,8 +47,7 @@ class ProductImagePipelineTest extends TestCase
 
         $this->actingAs($user)
             ->delete($this->url($menu, $category, $product))
-            ->assertOk()
-            ->assertJson(['path' => null]);
+            ->assertRedirect("/menus/{$menu->id}");
 
         $this->assertNull($product->fresh()->image_path);
         Storage::disk('public')->assertMissing($newPath);
