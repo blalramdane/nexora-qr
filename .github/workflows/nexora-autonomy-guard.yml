@@ -1,0 +1,33 @@
+name: NEXORA Autonomy Guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/phase-1-menu-design
+
+permissions:
+  contents: read
+
+jobs:
+  validate-control-plane:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate execution plan JSON
+        run: jq empty .nexora/execution-plan.json
+
+      - name: Validate state JSON
+        run: jq empty .nexora/state.json
+
+      - name: Validate runner syntax
+        run: bash -n scripts/nexora-run.sh
+
+      - name: Validate required control files
+        run: |
+          test -s .nexora/AGENT-PROTOCOL.md
+          test -s .nexora/IDEAS.md
+          test -s .nexora/DECISIONS.md
+          test -s .nexora/RUN-LOG.md
+          test -s docs/plans/NEXORA_QR_MASTER_EXECUTION_PLAN.md
