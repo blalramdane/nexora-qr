@@ -107,6 +107,33 @@ class MenuController extends Controller
         return to_route('menus.show', $menuModel);
     }
 
+    public function updateTheme(Request $request, int $menu): RedirectResponse
+    {
+        $this->authorizeMenuManagement();
+
+        $menuModel = Menu::query()->findOrFail($menu);
+
+        $data = $request->validate([
+            'primary' => ['required', 'string', 'size:7'],
+            'accent' => ['required', 'string', 'size:7'],
+            'background' => ['required', 'string', 'size:7'],
+            'foreground' => ['required', 'string', 'size:7'],
+            'radius' => ['required', 'in:sm,md,lg,xl,2xl'],
+        ]);
+
+        foreach (['primary', 'accent', 'background', 'foreground'] as $color) {
+            abort_unless(
+                preg_match('/^#[0-9A-Fa-f]{6}$/', $data[$color]) === 1,
+                422,
+                'Invalid color token.'
+            );
+        }
+
+        $menuModel->update(['theme' => $data]);
+
+        return to_route('menus.show', $menuModel);
+    }
+
     public function destroy(int $menu): RedirectResponse
     {
         $this->authorizeMenuManagement();
