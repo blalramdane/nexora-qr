@@ -94,7 +94,7 @@
     {
       "id": "09",
       "name": "Template Versioning",
-      "status": "pending",
+      "status": "verified",
       "verification": [
         "backend",
         "typecheck",
