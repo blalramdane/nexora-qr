@@ -45,19 +45,29 @@ class MenuController extends Controller
 
         $restaurant = app(TenantContext::class)->restaurant();
 
+        $theme = $template->key === 'fast-food'
+            ? [
+                'primary' => '#c9953c',
+                'accent' => '#e7b55d',
+                'background' => '#090807',
+                'foreground' => '#f8efe0',
+                'radius' => 'xl',
+            ]
+            : [
+                'primary' => '#111827',
+                'accent' => '#f59e0b',
+                'background' => '#ffffff',
+                'foreground' => '#111827',
+                'radius' => 'xl',
+            ];
+
         $menu = Menu::create([
             'restaurant_id' => $restaurant->id,
             'template_id' => $template->id,
             'template_version_id' => $template->activeVersion()->firstOrFail()->id,
             'name' => $data['name'],
             'slug' => $this->uniqueSlug($data['name']),
-            'theme' => [
-                'primary' => '#111827',
-                'accent' => '#f59e0b',
-                'background' => '#ffffff',
-                'foreground' => '#111827',
-                'radius' => 'xl',
-            ],
+            'theme' => $theme,
         ]);
 
         return to_route('menus.show', $menu);
