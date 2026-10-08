@@ -41,7 +41,7 @@
     {
       "id": "04",
       "name": "Variants",
-      "status": "pending",
+      "status": "verified",
       "verification": [
         "backend",
         "typecheck",
@@ -51,7 +51,7 @@
     {
       "id": "05",
       "name": "Modifiers",
-      "status": "pending",
+      "status": "verified",
       "verification": [
         "backend",
         "typecheck",
