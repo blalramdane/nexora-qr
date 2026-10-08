@@ -24,6 +24,9 @@ jobs:
       - name: Validate runner syntax
         run: bash -n scripts/nexora-run.sh
 
+      - name: Smoke test runner
+        run: NEXORA_DRY_RUN=1 bash scripts/nexora-run.sh auto
+
       - name: Validate required control files
         run: |
           test -s .nexora/AGENT-PROTOCOL.md
