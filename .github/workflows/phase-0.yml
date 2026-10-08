@@ -26,6 +26,10 @@ jobs:
         working-directory: ai-core
         run: composer update inertiajs/inertia-laravel --with-all-dependencies --no-interaction --prefer-dist
 
+      - name: Prepare Laravel test environment
+        working-directory: ai-core
+        run: cp .env.example .env
+
       - name: Run backend tests
         working-directory: ai-core
         run: php artisan test
