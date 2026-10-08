@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import type { ReactNode } from 'react';
 
 type Restaurant = {
     id: number;
@@ -22,7 +23,7 @@ type Menu = {
     template?: { key: string; name: string } | null;
 };
 
-function Icon({ children }: { children: React.ReactNode }) {
+function Icon({ children }: { children: ReactNode }) {
     return (
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
             {children}
@@ -39,7 +40,7 @@ function StatCard({
     label: string;
     value: number | string;
     hint: string;
-    icon: React.ReactNode;
+    icon: ReactNode;
 }) {
     return (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
