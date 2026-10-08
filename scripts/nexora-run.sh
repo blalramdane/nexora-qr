@@ -10,9 +10,9 @@ for f in "$PLAN" "$STATE" "$PROTOCOL"; do
   [[ -f "$f" ]] || { echo "NEXORA runner: missing $f" >&2; exit 1; }
 done
 
-STEP="\${1:-auto}"
-MAX_STEPS="\${NEXORA_MAX_STEPS:-1}"
-DRY_RUN="\${NEXORA_DRY_RUN:-0}"
+STEP="${1:-auto}"
+MAX_STEPS="${NEXORA_MAX_STEPS:-1}"
+DRY_RUN="${NEXORA_DRY_RUN:-0}"
 
 echo "NEXORA Autonomous Executor"
 echo "Requested step: $STEP"
@@ -23,7 +23,7 @@ if [[ "$DRY_RUN" == "1" ]]; then
   exit 0
 fi
 
-if [[ -z "\${NEXORA_AGENT_CMD:-}" ]]; then
+if [[ -z "${NEXORA_AGENT_CMD:-}" ]]; then
   echo "NEXORA_AGENT_CMD is required."
   echo "Set it to the approved coding-agent CLI/command used by your environment."
   exit 2
