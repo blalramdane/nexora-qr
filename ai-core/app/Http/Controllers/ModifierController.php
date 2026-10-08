@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use App\\Models\\Menu;
-use App\\Models\\Product;
-use App\\Support\\Tenancy\\TenantContext;
-use Illuminate\\Http\\RedirectResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\Menu;
+use App\Models\Product;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ModifierController extends Controller
 {
