@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
+import React, { FormEvent, useState } from 'react';
 import TemplateRenderer from './TemplateRenderer';
 
 type Template = { id: number; key: string; name: string };
