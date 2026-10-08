@@ -58,6 +58,8 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
     const [editingModifierName, setEditingModifierName] = useState('');
     const [editingModifierDelta, setEditingModifierDelta] = useState('');
     const [editingModifierRequired, setEditingModifierRequired] = useState(false);
+    const [dragging, setDragging] = useState<{ type: 'category' | 'product' | 'variant' | 'modifier'; id: number; categoryId?: number; productId?: number } | null>(null);
+    const [dragOver, setDragOver] = useState<{ type: 'category' | 'product' | 'variant' | 'modifier'; id: number } | null>(null);
 
     const save = (event: FormEvent) => {
         event.preventDefault();
@@ -268,6 +270,67 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
         if (window.confirm('حذف الـVariant؟')) router.delete('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/' + variantId);
     };
 
+    const finishDrag = () => {
+        setDragging(null);
+        setDragOver(null);
+    };
+
+    const reorderCategoriesByDrop = (targetId: number) => {
+        if (!dragging || dragging.type !== 'category' || dragging.id === targetId) return finishDrag();
+        const ids = menu.categories.map(c => c.id);
+        const from = ids.indexOf(dragging.id);
+        const to = ids.indexOf(targetId);
+        if (from < 0 || to < 0) return finishDrag();
+        ids.splice(from, 1);
+        ids.splice(to, 0, dragging.id);
+        router.post('/menus/' + menu.id + '/categories/reorder', { category_ids: ids }, { onFinish: finishDrag });
+    };
+
+    const reorderProductsByDrop = (category: Category, targetId: number) => {
+        if (!dragging || dragging.type !== 'product' || dragging.categoryId !== category.id || dragging.id === targetId) return finishDrag();
+        const ids = category.products.map(p => p.id);
+        const from = ids.indexOf(dragging.id);
+        const to = ids.indexOf(targetId);
+        if (from < 0 || to < 0) return finishDrag();
+        ids.splice(from, 1);
+        ids.splice(to, 0, dragging.id);
+        router.post('/menus/' + menu.id + '/categories/' + category.id + '/products/reorder', { product_ids: ids }, { onFinish: finishDrag });
+    };
+
+    const reorderVariantsByDrop = (categoryId: number, productId: number, variants: NonNullable<Category['products'][number]['variants']>, targetId: number) => {
+        if (!dragging || dragging.type !== 'variant' || dragging.productId !== productId || dragging.id === targetId) return finishDrag();
+        const ids = variants.map(v => v.id);
+        const from = ids.indexOf(dragging.id);
+        const to = ids.indexOf(targetId);
+        if (from < 0 || to < 0) return finishDrag();
+        ids.splice(from, 1);
+        ids.splice(to, 0, dragging.id);
+        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/reorder', { variant_ids: ids }, { onFinish: finishDrag });
+    };
+
+    const reorderModifiersByDrop = (categoryId: number, productId: number, modifiers: NonNullable<Category['products'][number]['modifiers']>, targetId: number) => {
+        if (!dragging || dragging.type !== 'modifier' || dragging.productId !== productId || dragging.id === targetId) return finishDrag();
+        const ids = modifiers.map(m => m.id);
+        const from = ids.indexOf(dragging.id);
+        const to = ids.indexOf(targetId);
+        if (from < 0 || to < 0) return finishDrag();
+        ids.splice(from, 1);
+        ids.splice(to, 0, dragging.id);
+        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/reorder', { modifier_ids: ids }, { onFinish: finishDrag });
+    };
+
+    const beginDrag = (event: React.DragEvent, type: 'category' | 'product' | 'variant' | 'modifier', id: number, categoryId?: number, productId?: number) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(id));
+        setDragging({ type, id, categoryId, productId });
+    };
+
+    const allowDrop = (event: React.DragEvent, type: 'category' | 'product' | 'variant' | 'modifier', id: number) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        setDragOver({ type, id });
+    };
+
     const moveCategory = (index: number, direction: -1 | 1) => {
         const nextIndex = index + direction;
         if (nextIndex < 0 || nextIndex >= menu.categories.length) return;
@@ -385,7 +448,7 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
 
                         <div className="mt-5 space-y-2">
                             {menu.categories.map((category, index) => (
-                                <div key={category.id} className={'rounded-2xl border p-3 ' + (category.is_active ? 'border-slate-200 bg-slate-50' : 'border-dashed border-slate-300 bg-slate-100 opacity-70')}>
+                                <div key={category.id} draggable onDragStart={(e) => beginDrag(e, 'category', category.id)} onDragOver={(e) => allowDrop(e, 'category', category.id)} onDrop={(e) => { e.preventDefault(); reorderCategoriesByDrop(category.id); }} onDragEnd={finishDrag} className={'rounded-2xl border p-3 cursor-grab active:cursor-grabbing ' + (dragOver?.type === 'category' && dragOver.id === category.id ? 'ring-2 ring-amber-400 ' : '') + (category.is_active ? 'border-slate-200 bg-slate-50' : 'border-dashed border-slate-300 bg-slate-100 opacity-70')}>
                                     {editingId === category.id ? (
                                         <form onSubmit={updateCategory} className="space-y-2">
                                             <input value={editingName} onChange={(e) => setEditingName(e.target.value)} maxLength={120} required className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2" />
@@ -399,6 +462,7 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                         <>
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
+                                                    <span className="mb-1 inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-black text-slate-500">⠿ اسحب لترتيب القسم</span>
                                                     <p className="font-black">{category.name}</p>
                                                     <p className="mt-0.5 text-xs text-slate-500">{category.products.length} منتج · {category.is_active ? 'نشط' : 'مخفي'}</p>
                                                 </div>
@@ -439,7 +503,7 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                     <div className="mt-3 space-y-2">
                                         {category.products.map((product, index) => (
                                             <React.Fragment key={product.id}>
-                                            <div className="rounded-xl bg-slate-50 p-3">
+                                            <div draggable onDragStart={(e) => beginDrag(e, 'product', product.id, category.id)} onDragOver={(e) => allowDrop(e, 'product', product.id)} onDrop={(e) => { e.preventDefault(); reorderProductsByDrop(category, product.id); }} onDragEnd={finishDrag} className={'rounded-xl bg-slate-50 p-3 cursor-grab active:cursor-grabbing ' + (dragOver?.type === 'product' && dragOver.id === product.id ? 'ring-2 ring-amber-400 ' : '')}>
                                                 {editingProductId === product.id ? (
                                                     <form onSubmit={(e) => saveProduct(e, category.id, product.id)} className="grid grid-cols-[1fr_7rem_auto] gap-2">
                                                         <input value={editingProductName} onChange={(e) => setEditingProductName(e.target.value)} required className="rounded-lg border px-2 py-1.5 text-sm" />
@@ -455,6 +519,7 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                                                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-lg">🍽️</div>
                                                             )}
                                                             <div className="min-w-0 flex-1">
+                                                                <span className="mb-1 inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-black text-slate-500">⠿ اسحب المنتج</span>
                                                                 <p className="truncate text-sm font-black">{product.name}</p>
                                                                 <p className="text-xs text-slate-500">{Number(product.price).toFixed(2)} ج.م · {product.is_available ? 'متاح' : 'مخفي'}{product.is_featured ? ' · ⭐ مميز' : ''}</p>
                                                             </div>
@@ -496,7 +561,7 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                                 )}
                                                 <div className="mt-2 space-y-1.5">
                                                     {(product.variants ?? []).map((variant, variantIndex, variants) => (
-                                                        <div key={variant.id} className={'rounded-lg p-2 ' + (variant.is_active ? 'bg-slate-50' : 'bg-slate-100 opacity-60')}>
+                                                        <div key={variant.id} draggable onDragStart={(e) => beginDrag(e, 'variant', variant.id, category.id, product.id)} onDragOver={(e) => allowDrop(e, 'variant', variant.id)} onDrop={(e) => { e.preventDefault(); reorderVariantsByDrop(category.id, product.id, variants, variant.id); }} onDragEnd={finishDrag} className={'rounded-lg p-2 cursor-grab active:cursor-grabbing ' + (dragOver?.type === 'variant' && dragOver.id === variant.id ? 'ring-2 ring-amber-400 ' : '') + (variant.is_active ? 'bg-slate-50' : 'bg-slate-100 opacity-60')}>
                                                             {editingVariantId === variant.id ? (
                                                                 <form onSubmit={(e) => saveVariant(e, category.id, product.id, variant.id)} className="space-y-2">
                                                                     <input value={editingVariantName} onChange={(e) => setEditingVariantName(e.target.value)} required className="w-full rounded border px-2 py-1 text-xs" />
@@ -510,7 +575,7 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                                                 </form>
                                                             ) : (
                                                                 <div className="flex items-center gap-1.5">
-                                                                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-black">{variant.name}</p><p className="text-[10px] text-slate-500">{variant.price !== null && variant.price !== undefined ? Number(variant.price).toFixed(2) + ' ج.م ثابت' : (Number(variant.price_delta) >= 0 ? '+' : '') + Number(variant.price_delta).toFixed(2) + ' ج.م'}</p></div>
+                                                                    <div className="min-w-0 flex-1"><span className="mr-1 text-[9px] text-slate-400">⠿</span><p className="truncate text-xs font-black">{variant.name}</p><p className="text-[10px] text-slate-500">{variant.price !== null && variant.price !== undefined ? Number(variant.price).toFixed(2) + ' ج.م ثابت' : (Number(variant.price_delta) >= 0 ? '+' : '') + Number(variant.price_delta).toFixed(2) + ' ج.م'}</p></div>
                                                                     <button type="button" disabled={variantIndex === 0} onClick={() => moveVariant(category.id, product.id, variants, variantIndex, -1)} className="rounded border px-1.5 text-[10px] disabled:opacity-30">↑</button>
                                                                     <button type="button" disabled={variantIndex === variants.length - 1} onClick={() => moveVariant(category.id, product.id, variants, variantIndex, 1)} className="rounded border px-1.5 text-[10px] disabled:opacity-30">↓</button>
                                                                     <button type="button" onClick={() => startEditingVariant(variant)} className="rounded border px-1.5 py-1 text-[10px]">تعديل</button>
@@ -540,7 +605,7 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                                 )}
                                                 <div className="mt-2 space-y-1.5">
                                                     {(product.modifiers ?? []).map((modifier, modifierIndex, modifiers) => (
-                                                        <div key={modifier.id} className={'rounded-lg p-2 ' + (modifier.is_active ? 'bg-white' : 'bg-slate-100 opacity-60')}>
+                                                        <div key={modifier.id} draggable onDragStart={(e) => beginDrag(e, 'modifier', modifier.id, category.id, product.id)} onDragOver={(e) => allowDrop(e, 'modifier', modifier.id)} onDrop={(e) => { e.preventDefault(); reorderModifiersByDrop(category.id, product.id, modifiers, modifier.id); }} onDragEnd={finishDrag} className={'rounded-lg p-2 cursor-grab active:cursor-grabbing ' + (dragOver?.type === 'modifier' && dragOver.id === modifier.id ? 'ring-2 ring-emerald-400 ' : '') + (modifier.is_active ? 'bg-white' : 'bg-slate-100 opacity-60')}>
                                                             {editingModifierId === modifier.id ? (
                                                                 <form onSubmit={(e) => saveModifier(e, category.id, product.id, modifier.id)} className="space-y-2">
                                                                     <input value={editingModifierName} onChange={(e) => setEditingModifierName(e.target.value)} required className="w-full rounded border px-2 py-1 text-xs" />
@@ -552,7 +617,7 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                                                 </form>
                                                             ) : (
                                                                 <div className="flex items-center gap-1.5">
-                                                                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-black">{modifier.name}</p><p className="text-[10px] text-slate-500">{Number(modifier.price_delta) >= 0 ? '+' : ''}{Number(modifier.price_delta).toFixed(2)} ج.م · {modifier.is_required ? 'مطلوب' : 'اختياري'}</p></div>
+                                                                    <div className="min-w-0 flex-1"><span className="mr-1 text-[9px] text-slate-400">⠿</span><p className="truncate text-xs font-black">{modifier.name}</p><p className="text-[10px] text-slate-500">{Number(modifier.price_delta) >= 0 ? '+' : ''}{Number(modifier.price_delta).toFixed(2)} ج.م · {modifier.is_required ? 'مطلوب' : 'اختياري'}</p></div>
                                                                     <button type="button" disabled={modifierIndex === 0} onClick={() => moveModifier(category.id, product.id, modifiers, modifierIndex, -1)} className="rounded border px-1.5 text-[10px] disabled:opacity-30">↑</button>
                                                                     <button type="button" disabled={modifierIndex === modifiers.length - 1} onClick={() => moveModifier(category.id, product.id, modifiers, modifierIndex, 1)} className="rounded border px-1.5 text-[10px] disabled:opacity-30">↓</button>
                                                                     <button type="button" onClick={() => startEditingModifier(modifier)} className="rounded border px-1.5 py-1 text-[10px]">تعديل</button>
