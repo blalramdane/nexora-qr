@@ -48,6 +48,7 @@ class MenuController extends Controller
         $menu = Menu::create([
             'restaurant_id' => $restaurant->id,
             'template_id' => $template->id,
+            'template_version_id' => $template->activeVersion()->firstOrFail()->id,
             'name' => $data['name'],
             'slug' => $this->uniqueSlug($data['name']),
             'theme' => [
@@ -67,7 +68,7 @@ class MenuController extends Controller
         $this->authorizeMenuManagement();
 
         $menuModel = Menu::query()
-            ->with(['template.activeVersion', 'categories.products.variants', 'categories.products.modifiers'])
+            ->with(['template.activeVersion', 'templateVersion', 'categories.products.variants', 'categories.products.modifiers'])
             ->findOrFail($menu);
 
         return Inertia::render('Menu/Builder', [
@@ -96,9 +97,14 @@ class MenuController extends Controller
             ->where('is_active', true)
             ->firstOrFail();
 
+        $templateChanged = $menuModel->template_id !== $template->id;
+
         $menuModel->update([
             'name' => $data['name'],
             'template_id' => $template->id,
+            'template_version_id' => $templateChanged
+                ? $template->activeVersion()->firstOrFail()->id
+                : $menuModel->template_version_id,
             'slug' => $menuModel->name !== $data['name']
                 ? $this->uniqueSlug($data['name'], $menuModel->id)
                 : $menuModel->slug,
