@@ -29,6 +29,15 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState('');
     const [editingDescription, setEditingDescription] = useState('');
+    const [productCategoryId, setProductCategoryId] = useState<number | null>(null);
+    const [productName, setProductName] = useState('');
+    const [productDescription, setProductDescription] = useState('');
+    const [productPrice, setProductPrice] = useState('');
+    const [productImage, setProductImage] = useState('');
+    const [productFeatured, setProductFeatured] = useState(false);
+    const [editingProductId, setEditingProductId] = useState<number | null>(null);
+    const [editingProductName, setEditingProductName] = useState('');
+    const [editingProductPrice, setEditingProductPrice] = useState('');
 
     const save = (event: FormEvent) => {
         event.preventDefault();
@@ -86,6 +95,75 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
         if (window.confirm('حذف القسم؟ المنتجات المرتبطة به سيتم حذفها أيضًا.')) {
             router.delete('/menus/' + menu.id + '/categories/' + category.id);
         }
+    };
+
+    const addProduct = (event: FormEvent, categoryId: number) => {
+        event.preventDefault();
+        if (!productName.trim() || !productPrice) return;
+        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products', {
+            name: productName,
+            description: productDescription || null,
+            price: productPrice,
+            image_path: productImage || null,
+            is_featured: productFeatured,
+        }, {
+            onSuccess: () => {
+                setProductName('');
+                setProductDescription('');
+                setProductPrice('');
+                setProductImage('');
+                setProductFeatured(false);
+                setProductCategoryId(null);
+            },
+        });
+    };
+
+    const startEditingProduct = (product: Category['products'][number]) => {
+        setEditingProductId(product.id);
+        setEditingProductName(product.name);
+        setEditingProductPrice(product.price);
+    };
+
+    const saveProduct = (event: FormEvent, categoryId: number, productId: number) => {
+        event.preventDefault();
+        if (!editingProductName.trim() || !editingProductPrice) return;
+        const product = menu.categories.find(c => c.id === categoryId)?.products.find(p => p.id === productId);
+        if (!product) return;
+        router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId, {
+            name: editingProductName,
+            description: product.description ?? null,
+            price: editingProductPrice,
+            image_path: product.image_path ?? null,
+            is_available: product.is_available,
+            is_featured: product.is_featured,
+            sort_order: product.sort_order,
+        }, { onSuccess: () => setEditingProductId(null) });
+    };
+
+    const toggleProduct = (category: Category, product: Category['products'][number]) => {
+        router.put('/menus/' + menu.id + '/categories/' + category.id + '/products/' + product.id, {
+            name: product.name,
+            description: product.description ?? null,
+            price: product.price,
+            image_path: product.image_path ?? null,
+            is_available: !product.is_available,
+            is_featured: product.is_featured,
+            sort_order: product.sort_order,
+        });
+    };
+
+    const deleteProduct = (category: Category, product: Category['products'][number]) => {
+        if (window.confirm('حذف المنتج؟')) {
+            router.delete('/menus/' + menu.id + '/categories/' + category.id + '/products/' + product.id);
+        }
+    };
+
+    const moveProduct = (category: Category, index: number, direction: -1 | 1) => {
+        const nextIndex = index + direction;
+        if (nextIndex < 0 || nextIndex >= category.products.length) return;
+        const ids = category.products.map(p => p.id);
+        [ids[index], ids[nextIndex]] = [ids[nextIndex], ids[index]];
+        router.post('/menus/' + menu.id + '/categories/' + category.id + '/products/reorder', { product_ids: ids });
     };
 
     const moveCategory = (index: number, direction: -1 | 1) => {
@@ -175,6 +253,54 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                             </div>
                                         </>
                                     )}
+                                </div>
+                            ))}
+                            {menu.categories.map((category) => (
+                                <div key={'products-' + category.id} className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-black text-slate-500">PRODUCTS · {category.name}</span>
+                                        <button type="button" onClick={() => setProductCategoryId(productCategoryId === category.id ? null : category.id)} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white">
+                                            {productCategoryId === category.id ? 'إغلاق' : '+ منتج'}
+                                        </button>
+                                    </div>
+                                    {productCategoryId === category.id && (
+                                        <form onSubmit={(e) => addProduct(e, category.id)} className="mt-3 space-y-2">
+                                            <input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="اسم المنتج" maxLength={160} required className="w-full rounded-lg border px-3 py-2" />
+                                            <textarea value={productDescription} onChange={(e) => setProductDescription(e.target.value)} placeholder="الوصف" maxLength={2000} rows={2} className="w-full rounded-lg border px-3 py-2" />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <input value={productPrice} onChange={(e) => setProductPrice(e.target.value)} type="number" min="0" step="0.01" placeholder="السعر" required className="rounded-lg border px-3 py-2" />
+                                                <input value={productImage} onChange={(e) => setProductImage(e.target.value)} placeholder="رابط الصورة" className="rounded-lg border px-3 py-2" />
+                                            </div>
+                                            <label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={productFeatured} onChange={(e) => setProductFeatured(e.target.checked)} /> مميز</label>
+                                            <button type="submit" className="w-full rounded-lg bg-amber-500 px-3 py-2 text-xs font-black text-white">إضافة المنتج</button>
+                                        </form>
+                                    )}
+                                    <div className="mt-3 space-y-2">
+                                        {category.products.map((product, index) => (
+                                            <div key={product.id} className="rounded-xl bg-slate-50 p-3">
+                                                {editingProductId === product.id ? (
+                                                    <form onSubmit={(e) => saveProduct(e, category.id, product.id)} className="grid grid-cols-[1fr_7rem_auto] gap-2">
+                                                        <input value={editingProductName} onChange={(e) => setEditingProductName(e.target.value)} required className="rounded-lg border px-2 py-1.5 text-sm" />
+                                                        <input value={editingProductPrice} onChange={(e) => setEditingProductPrice(e.target.value)} type="number" min="0" step="0.01" required className="rounded-lg border px-2 py-1.5 text-sm" />
+                                                        <button type="submit" className="rounded-lg bg-slate-900 px-3 text-xs font-bold text-white">حفظ</button>
+                                                    </form>
+                                                ) : (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="truncate text-sm font-black">{product.name}</p>
+                                                            <p className="text-xs text-slate-500">{Number(product.price).toFixed(2)} ج.م · {product.is_available ? 'متاح' : 'مخفي'}{product.is_featured ? ' · ⭐ مميز' : ''}</p>
+                                                        </div>
+                                                        <button type="button" disabled={index === 0} onClick={() => moveProduct(category, index, -1)} className="rounded border px-1.5 text-xs disabled:opacity-30">↑</button>
+                                                        <button type="button" disabled={index === category.products.length - 1} onClick={() => moveProduct(category, index, 1)} className="rounded border px-1.5 text-xs disabled:opacity-30">↓</button>
+                                                        <button type="button" onClick={() => startEditingProduct(product)} className="rounded border px-2 py-1 text-xs">تعديل</button>
+                                                        <button type="button" onClick={() => toggleProduct(category, product)} className="rounded border px-2 py-1 text-xs">{product.is_available ? 'إخفاء' : 'تفعيل'}</button>
+                                                        <button type="button" onClick={() => deleteProduct(category, product)} className="rounded border border-red-200 px-2 py-1 text-xs text-red-600">حذف</button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                        {category.products.length === 0 && <p className="py-2 text-center text-xs text-slate-400">مفيش منتجات في القسم.</p>}
+                                    </div>
                                 </div>
                             ))}
                             {menu.categories.length === 0 && <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">لسه مفيش أقسام. أضف أول قسم فوق.</p>}
