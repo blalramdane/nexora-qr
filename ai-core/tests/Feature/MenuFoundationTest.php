@@ -93,6 +93,7 @@ class MenuFoundationTest extends TestCase
         $restaurant->users()->attach($user->id, ['role' => 'owner']);
 
         $template = Template::create(['key' => 'fast-food', 'name' => 'Fast Food']);
+        $template->createVersion(['components' => ['header']], true);
         app(TenantContext::class)->set($restaurant);
 
         $menu = Menu::create([
@@ -131,6 +132,7 @@ class MenuFoundationTest extends TestCase
         $restaurant->users()->attach($member->id, ['role' => 'staff']);
 
         $template = Template::create(['key' => 'cafe', 'name' => 'Cafe']);
+        $template->createVersion(['components' => ['header']], true);
         app(TenantContext::class)->set($restaurant);
 
         $this->actingAs($manager)
