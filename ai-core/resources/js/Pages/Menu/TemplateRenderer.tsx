@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import FastFoodTemplate from './FastFoodTemplate';
 import CafeTemplate from './CafeTemplate';
 import FineDiningTemplate from './FineDiningTemplate';
@@ -11,7 +11,7 @@ type Product = {
 type Category = { id: number; name: string; description?: string | null; products: Product[] };
 type Theme = { primary: string; accent: string; background: string; foreground: string; radius: 'sm' | 'md' | 'lg' | 'xl' | '2xl' };
 type Menu = { name: string; categories: Category[]; theme?: Theme | null; template?: { key: string; name: string } | null };
-type Props = { menu: Menu; restaurantName?: string; preview?: boolean };
+type Props = { menu: Menu; restaurantName?: string; preview?: boolean; previewCategoryId?: number };
 
 const money = (value: string) => Number(value).toFixed(0) + ' ج.م';
 const imageUrl = (path?: string | null) => path && (path.startsWith('http') || path.startsWith('/')) ? path : path ? '/storage/' + path : null;
@@ -36,12 +36,18 @@ function ProductCard({ product, style, theme }: { product: Product; style: 'comp
     </article>;
 }
 
-export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restaurant', preview = false }: Props) {
+export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restaurant', preview = false, previewCategoryId }: Props) {
     const theme: Theme = menu.theme ?? { primary: '#111827', accent: '#f59e0b', background: '#ffffff', foreground: '#111827', radius: 'xl' };
     const radius = ({ sm: '0.5rem', md: '0.75rem', lg: '1rem', xl: '1.25rem', '2xl': '1.75rem' } as const)[theme.radius];
     const themeStyle = { '--menu-primary': theme.primary, '--menu-accent': theme.accent, '--menu-background': theme.background, '--menu-foreground': theme.foreground, '--menu-radius': radius } as React.CSSProperties;
-    const [active, setActive] = useState(menu.categories[0]?.id);
+    const [active, setActive] = useState(previewCategoryId ?? menu.categories[0]?.id);
     const categories = menu.categories;
+
+    useEffect(() => {
+        if (previewCategoryId && categories.some((category) => category.id === previewCategoryId)) {
+            setActive(previewCategoryId);
+        }
+    }, [previewCategoryId, categories]);
     const current = categories.find(c => c.id === active) || categories[0];
     const key = menu.template?.key || 'fast-food';
     const version = Number((menu as any).templateVersion?.version ?? (preview ? 2 : 1));
