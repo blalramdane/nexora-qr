@@ -26,6 +26,7 @@ class Template extends Model
     public function activeVersion(): HasOne
     {
         return $this->hasOne(TemplateVersion::class)
-            ->ofMany('version', 'max', fn ($query) => $query->where('is_active', true));
+            ->latestOfMany('version')
+            ->where('is_active', true);
     }
 }
