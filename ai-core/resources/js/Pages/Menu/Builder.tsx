@@ -423,7 +423,8 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                     )}
                                     <div className="mt-3 space-y-2">
                                         {category.products.map((product, index) => (
-                                            <div key={product.id} className="rounded-xl bg-slate-50 p-3">
+                                            <React.Fragment key={product.id}>
+                                            <div className="rounded-xl bg-slate-50 p-3">
                                                 {editingProductId === product.id ? (
                                                     <form onSubmit={(e) => saveProduct(e, category.id, product.id)} className="grid grid-cols-[1fr_7rem_auto] gap-2">
                                                         <input value={editingProductName} onChange={(e) => setEditingProductName(e.target.value)} required className="rounded-lg border px-2 py-1.5 text-sm" />
@@ -534,6 +535,7 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                                     {(product.modifiers ?? []).length === 0 && <p className="py-1 text-center text-[10px] text-slate-400">مفيش Modifiers.</p>}
                                                 </div>
                                             </div>
+                                            </React.Fragment>
                                         ))}
                                         {category.products.length === 0 && <p className="py-2 text-center text-xs text-slate-400">مفيش منتجات في القسم.</p>}
                                     </div>
