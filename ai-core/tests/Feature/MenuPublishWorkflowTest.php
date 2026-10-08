@@ -71,18 +71,25 @@ class MenuPublishWorkflowTest extends TestCase
             'restaurant_id' => $restaurant->id,
             'template_id' => $template->id,
             'template_version_id' => $version->id,
+            'name' => 'Main Menu',
+            'slug' => 'main-menu',
             'is_published' => false,
         ]);
 
         $category = MenuCategory::create([
             'restaurant_id' => $restaurant->id,
             'menu_id' => $menu->id,
+            'name' => 'Burgers',
+            'slug' => 'burgers',
             'is_active' => true,
         ]);
 
         Product::create([
             'restaurant_id' => $restaurant->id,
             'menu_category_id' => $category->id,
+            'name' => 'Classic Burger',
+            'slug' => 'classic-burger',
+            'price' => 100,
             'is_available' => true,
         ]);
 
