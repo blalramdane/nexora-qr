@@ -28,4 +28,9 @@ class Product extends Model
     {
         return $this->hasMany(ProductVariant::class)->orderBy('sort_order');
     }
+
+    public function modifiers(): HasMany
+    {
+        return $this->hasMany(Modifier::class)->orderBy('sort_order');
+    }
 }
