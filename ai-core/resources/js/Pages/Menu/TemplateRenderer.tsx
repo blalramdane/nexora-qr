@@ -19,7 +19,6 @@ type Menu = {
     categories: Category[];
     theme?: Theme | null;
     template?: { key: string; name: string } | null;
-    templateVersion?: { version: number; schema?: Record<string, unknown> } | null;
 };
 type Props = { menu: Menu; restaurantName?: string; preview?: boolean };
 
@@ -86,7 +85,7 @@ export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restau
     const categories = menu.categories;
     const current = categories.find((category) => category.id === active) || categories[0];
     const key = menu.template?.key || 'fast-food';
-    const version = menu.templateVersion?.version ?? 1;
+    const version = Number((menu as any).templateVersion?.version ?? 1);
 
     if (key === 'fast-food' && version >= 2) {
         return <FastFoodTemplate menu={menu} restaurantName={restaurantName} preview={preview} />;
