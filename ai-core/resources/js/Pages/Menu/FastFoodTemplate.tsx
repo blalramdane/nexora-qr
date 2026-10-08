@@ -63,7 +63,9 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
         )
         : 0;
 
-    return (\n        <>\n        <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-fast min-h-screen overflow-x-hidden bg-[#090807]">
+    return (
+        <>
+            <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-fast min-h-screen overflow-x-hidden bg-[#090807]">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-[#090807]/92 backdrop-blur-xl">
                 <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
                     <button type="button" aria-label="فتح القائمة" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-white">☰</button>
@@ -197,5 +199,6 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
                 </div>
             )}
         </div>
+        </>
     );
 }
