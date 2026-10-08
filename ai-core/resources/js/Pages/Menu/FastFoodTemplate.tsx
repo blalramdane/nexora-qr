@@ -11,6 +11,8 @@ const imageUrl = (path?: string | null) =>
     path && (path.startsWith('http') || path.startsWith('/')) ? path : path ? '/storage/' + path : null;
 const radiusMap = { sm: '0.65rem', md: '0.85rem', lg: '1rem', xl: '1.25rem', '2xl': '1.75rem' } as const;
 
+const motionCss = "@keyframes nxFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}@keyframes nxGlow{0%,100%{opacity:.25;transform:scale(.96)}50%{opacity:.6;transform:scale(1.05)}}@keyframes nxShine{from{transform:translateX(-130%) skewX(-18deg)}to{transform:translateX(160%) skewX(-18deg)}}.nx-fast{background-image:radial-gradient(circle at 85% 8%,rgba(231,181,93,.1),transparent 24%),radial-gradient(circle at 10% 42%,rgba(201,149,60,.07),transparent 26%)}.nx-hero{isolation:isolate;box-shadow:0 30px 80px rgba(0,0,0,.38)}.nx-hero:before{content:'';position:absolute;inset:-20%;z-index:-1;background:radial-gradient(circle,rgba(231,181,93,.18),transparent 55%);filter:blur(28px);animation:nxGlow 6s ease-in-out infinite}.nx-float{animation:nxFloat 5s ease-in-out infinite}.nx-shine{position:relative;overflow:hidden}.nx-shine:after{content:'';position:absolute;inset:0 auto 0 -45%;width:32%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent);transform:skewX(-18deg);pointer-events:none}.nx-shine:hover:after{animation:nxShine .85s ease}.nx-product{transition:transform .28s cubic-bezier(.2,.8,.2,1),border-color .28s,box-shadow .28s}.nx-product:hover{transform:translateY(-3px);border-color:rgba(231,181,93,.32)!important;box-shadow:0 18px 40px rgba(0,0,0,.24)}@media(prefers-reduced-motion:reduce){.nx-float,.nx-hero:before{animation:none}.nx-product{transition:none}}";
+
 function ImageOrFallback({ src, alt, className }: { src?: string | null; alt: string; className: string }) {
     return src ? (
         <img src={src} alt={alt} className={className} loading="lazy" />
@@ -61,8 +63,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
         )
         : 0;
 
-    return (
-        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="min-h-screen overflow-x-hidden bg-[#090807]">
+    return (\n        <>\n        <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-fast min-h-screen overflow-x-hidden bg-[#090807]">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-[#090807]/92 backdrop-blur-xl">
                 <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
                     <button type="button" aria-label="فتح القائمة" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-white">☰</button>
@@ -82,7 +83,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
 
             <main className="mx-auto max-w-3xl pb-28">
                 <section className="px-3 pt-3">
-                    <div className="relative overflow-hidden border border-white/10 shadow-2xl" style={{ borderRadius: '0 0 ' + radius + ' ' + radius }}>
+                    <div className="nx-hero relative overflow-hidden border border-white/10 shadow-2xl" style={{ borderRadius: '0 0 ' + radius + ' ' + radius }}>
                         <div className="aspect-[0.9] min-h-[390px]">
                             <ImageOrFallback src={imageUrl(heroProduct?.image_path)} alt={heroProduct?.name ?? menu.name} className="h-full w-full object-cover" />
                         </div>
@@ -107,7 +108,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
                                 <button key={category.id} type="button" onClick={() => {
                                     setActiveCategoryId(category.id);
                                     window.setTimeout(() => document.getElementById('fast-food-menu')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
-                                }} className="group relative min-h-36 overflow-hidden border border-white/10 text-right shadow-lg transition active:scale-[0.98]" style={{ borderRadius: radius }}>
+                                }} className="nx-shine group relative min-h-36 overflow-hidden border border-white/10 text-right shadow-lg transition active:scale-[0.98]" style={{ borderRadius: radius }}>
                                     <ImageOrFallback src={imageUrl(tileProduct?.image_path)} alt={category.name} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
                                     <div className="absolute inset-x-0 bottom-0 p-3">
@@ -139,7 +140,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
 
                     <div className="mt-5 space-y-2.5">
                         {(activeCategory?.products ?? []).map((product: any) => (
-                            <button key={product.id} type="button" disabled={!product.is_available} onClick={() => openProduct(product)} className="group flex w-full items-center gap-3 border border-white/10 bg-white/[0.035] p-2 text-right shadow-lg transition active:scale-[0.99] disabled:opacity-45" style={{ borderRadius: radius }}>
+                            <button key={product.id} type="button" disabled={!product.is_available} onClick={() => openProduct(product)} className="nx-product nx-shine group flex w-full items-center gap-3 border border-white/10 bg-white/[0.035] p-2 text-right shadow-lg transition active:scale-[0.99] disabled:opacity-45" style={{ borderRadius: radius }}>
                                 <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[0.85rem] bg-black/40">
                                     <ImageOrFallback src={imageUrl(product.image_path)} alt={product.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                                 </div>
@@ -154,7 +155,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
                                         {product.variants?.length ? <span className="text-[9px] text-white/30">+ {product.variants.length} اختيارات</span> : null}
                                     </div>
                                 </div>
-                                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border text-lg font-light text-black transition group-hover:scale-105" style={{ backgroundColor: theme.accent, borderColor: theme.accent }}>+</span>
+                                <span className="nx-float grid h-9 w-9 shrink-0 place-items-center rounded-full border text-lg font-light text-black transition group-hover:scale-105" style={{ backgroundColor: theme.accent, borderColor: theme.accent }}>+</span>
                             </button>
                         ))}
                         {(activeCategory?.products?.length ?? 0) === 0 && <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-white/35">القسم ده لسه مفيهوش منتجات.</div>}
