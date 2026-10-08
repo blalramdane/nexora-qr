@@ -20,6 +20,7 @@ type Menu = Omit<RenderableMenu, 'categories'> & {
     slug: string;
     is_published: boolean;
     template_id: number | null;
+    published_at?: string | null;
     theme: { primary: string; accent: string; background: string; foreground: string; radius: 'sm' | 'md' | 'lg' | 'xl' | '2xl' };
     categories: Category[];
 };
@@ -67,6 +68,9 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
     const [editingModifierRequired, setEditingModifierRequired] = useState(false);
     const [dragging, setDragging] = useState<{ type: 'category' | 'product' | 'variant' | 'modifier'; id: number; categoryId?: number; productId?: number } | null>(null);
     const [dragOver, setDragOver] = useState<{ type: 'category' | 'product' | 'variant' | 'modifier'; id: number } | null>(null);
+
+    const publishMenu = () => router.post('/menus/' + menu.id + '/publish');
+    const unpublishMenu = () => router.post('/menus/' + menu.id + '/unpublish');
 
     const save = (event: FormEvent) => {
         event.preventDefault();
