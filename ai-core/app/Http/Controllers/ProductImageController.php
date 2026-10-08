@@ -6,14 +6,14 @@ use App\Models\Menu;
 use App\Models\MenuCategory;
 use App\Models\Product;
 use App\Support\Tenancy\TenantContext;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProductImageController extends Controller
 {
-    public function store(Request $request, int $menu, int $category, int $product): JsonResponse
+    public function store(Request $request, int $menu, int $category, int $product): RedirectResponse
     {
         $this->authorizeMenuManagement();
 
@@ -41,13 +41,10 @@ class ProductImageController extends Controller
             $disk->delete($oldPath);
         }
 
-        return response()->json([
-            'path' => $path,
-            'url' => $disk->url($path),
-        ]);
+        return to_route('menus.show', $menuModel);
     }
 
-    public function destroy(int $menu, int $category, int $product): JsonResponse
+    public function destroy(int $menu, int $category, int $product): RedirectResponse
     {
         $this->authorizeMenuManagement();
 
@@ -66,7 +63,7 @@ class ProductImageController extends Controller
             $productModel->update(['image_path' => null]);
         }
 
-        return response()->json(['path' => null]);
+        return to_route('menus.show', $menuModel);
     }
 
     private function authorizeMenuManagement(): void
