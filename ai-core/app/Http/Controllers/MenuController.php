@@ -42,10 +42,15 @@ class MenuController extends Controller
         return to_route('menus.show', $menu);
     }
 
-    public function show(Menu $menu): Response
+    public function show(int $menu): Response
     {
-        $menu->load(['template.activeVersion', 'categories.products.variants']);
+        $menuModel = Menu::query()
+            ->with(['template.activeVersion', 'categories.products.variants'])
+            ->findOrFail($menu);
 
-        return Inertia::render('Menu/Builder', ['menu' => $menu, 'template' => $menu->template]);
+        return Inertia::render('Menu/Builder', [
+            'menu' => $menuModel,
+            'template' => $menuModel->template,
+        ]);
     }
 }
