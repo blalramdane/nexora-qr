@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import FastFoodTemplate from './FastFoodTemplate';
 
 type Product = {
     id: number; name: string; description?: string | null; price: string;
@@ -41,6 +42,11 @@ export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restau
     const categories = menu.categories;
     const current = categories.find(c => c.id === active) || categories[0];
     const key = menu.template?.key || 'fast-food';
+    const version = Number((menu as any).templateVersion?.version ?? 1);
+
+    if (key === 'fast-food' && version >= 2) {
+        return <FastFoodTemplate menu={menu} restaurantName={restaurantName} preview={preview} />;
+    }
 
     if (key === 'fine-dining') return <div dir="rtl" style={{ ...themeStyle, backgroundColor: theme.background, color: theme.foreground }} className="min-h-screen">
         <header className="mx-auto max-w-5xl px-5 pb-10 pt-12 text-center">
