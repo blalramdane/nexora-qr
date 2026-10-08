@@ -7,7 +7,6 @@ use App\Models\MenuCategory;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\Template;
-use App\Models\TemplateVersion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -49,8 +48,10 @@ class MenuPublishWorkflowTest extends TestCase
     public function test_publish_cannot_cross_tenant_boundary(): void
     {
         [$user, $restaurant, $menu] = $this->readyMenu();
-        $other = Restaurant::factory()->create();
-        $otherMenu = Menu::factory()->create(['restaurant_id' => $other->id]);
+        $other = Restaurant::create(['name' => 'B', 'slug' => 'b']);
+        app(\App\Support\Tenancy\TenantContext::class)->set($other);
+        $otherMenu = Menu::create(['restaurant_id' => $other->id, 'name' => 'Other', 'slug' => 'other']);
+        app(\App\Support\Tenancy\TenantContext::class)->set($restaurant);
 
         $this->actingAs($user)->post(route('menus.publish', $otherMenu))
             ->assertStatus(404);
@@ -58,32 +59,28 @@ class MenuPublishWorkflowTest extends TestCase
 
     private function readyMenu(): array
     {
-        $restaurant = Restaurant::factory()->create();
+        $restaurant = Restaurant::create(['name' => 'A', 'slug' => 'a']);
         $user = User::factory()->create();
         $restaurant->users()->attach($user->id, ['role' => 'manager']);
 
-        $template = Template::factory()->create(['is_active' => true]);
-        $version = TemplateVersion::factory()->create([
-            'template_id' => $template->id,
-            'version' => 1,
-            'is_active' => true,
-            'schema' => ['layout' => 'test'],
-        ]);
+        $template = Template::create(['key' => 'fast-food', 'name' => 'Fast Food', 'is_active' => true]);
+        $version = $template->versions()->create(['version' => 1, 'is_active' => true, 'schema' => ['layout' => 'test']]);
 
-        $menu = Menu::factory()->create([
+        app(\App\Support\Tenancy\TenantContext::class)->set($restaurant);
+        $menu = Menu::create([
             'restaurant_id' => $restaurant->id,
             'template_id' => $template->id,
             'template_version_id' => $version->id,
             'is_published' => false,
         ]);
 
-        $category = MenuCategory::factory()->create([
+        $category = MenuCategory::create([
             'restaurant_id' => $restaurant->id,
             'menu_id' => $menu->id,
             'is_active' => true,
         ]);
 
-        Product::factory()->create([
+        Product::create([
             'restaurant_id' => $restaurant->id,
             'menu_category_id' => $category->id,
             'is_available' => true,
