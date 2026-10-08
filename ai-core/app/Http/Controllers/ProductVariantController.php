@@ -92,7 +92,7 @@ class ProductVariantController extends Controller
 
     private function variantPayload(array $data, Product $product, ?int $existingSortOrder = null): array
     {
-        $sortOrder = $data['sort_order'] ?? $existingSortOrder ?? ((int) $product->variants()->max('sort_order') + 1);
+        $sortOrder = $data['sort_order'] ?? $existingSortOrder ?? ($product->variants()->exists() ? ((int) $product->variants()->max('sort_order') + 1) : 0);
 
         if ($data['pricing_mode'] === 'fixed') {
             abort_unless(array_key_exists('price', $data) && $data['price'] !== null, 422, 'Fixed pricing requires a price.');
