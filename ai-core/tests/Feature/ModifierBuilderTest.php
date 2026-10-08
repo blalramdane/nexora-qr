@@ -1,17 +1,17 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\Menu;
-use App\\Models\\MenuCategory;
-use App\\Models\\Modifier;
-use App\\Models\\Product;
-use App\\Models\\Restaurant;
-use App\\Models\\Template;
-use App\\Models\\User;
-use App\\Support\\Tenancy\\TenantContext;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Tests\\TestCase;
+use App\Models\Menu;
+use App\Models\MenuCategory;
+use App\Models\Modifier;
+use App\Models\Product;
+use App\Models\Restaurant;
+use App\Models\Template;
+use App\Models\User;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class ModifierBuilderTest extends TestCase
 {
