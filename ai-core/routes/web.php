@@ -8,6 +8,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductVariantController;
 use App\Http\Controllers\ModifierController;
 use App\Http\Controllers\ProductImageController;
+use App\Http\Controllers\MenuPublishController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -28,6 +29,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/menus/{menu}', [MenuController::class, 'update'])->name('menus.update');
 Route::put('/menus/{menu}/theme', [MenuController::class, 'updateTheme'])->name('menus.theme.update');
         Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->name('menus.destroy');
+        Route::post('/menus/{menu}/publish', [MenuPublishController::class, 'publish'])->name('menus.publish');
+        Route::post('/menus/{menu}/unpublish', [MenuPublishController::class, 'unpublish'])->name('menus.unpublish');
 
         Route::post('/menus/{menu}/categories', [MenuCategoryController::class, 'store'])->name('menus.categories.store');
         Route::put('/menus/{menu}/categories/{category}', [MenuCategoryController::class, 'update'])->name('menus.categories.update');
