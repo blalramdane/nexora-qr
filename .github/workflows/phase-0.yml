@@ -22,9 +22,9 @@ jobs:
           extensions: mbstring, sqlite3, pdo_sqlite
           coverage: none
 
-      - name: Refresh Composer dependencies
+      - name: Install Composer dependencies
         working-directory: ai-core
-        run: composer update inertiajs/inertia-laravel --with-all-dependencies --no-interaction --prefer-dist
+        run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
 
       - name: Prepare Laravel test environment
         working-directory: ai-core
