@@ -161,7 +161,7 @@ class MenuController extends Controller
         $errors = $this->publishValidationErrors($menuModel);
 
         if ($errors !== []) {
-            return to_route('menus.show', $menuModel)->withErrors($errors);
+            return redirect()->route('menus.show', ['menu' => $menuModel->id])->withErrors($errors);
         }
 
         $menuModel->update(['is_published' => true]);
