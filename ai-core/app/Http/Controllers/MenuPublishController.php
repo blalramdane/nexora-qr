@@ -21,12 +21,12 @@ class MenuPublishController extends Controller
         }
 
         if (!$menuModel->templateVersion?->is_active) {
-            return back()->withErrors(['publish' => 'نسخة الـTemplate الحالية غير مفعّلة.']);
+            return to_route('menus.show', $menuModel)->withErrors(['publish' => 'نسخة الـTemplate الحالية غير مفعّلة.']);
         }
 
         $hasActiveCategory = $menuModel->categories->contains(fn ($category) => $category->is_active);
         if (!$hasActiveCategory) {
-            return back()->withErrors(['publish' => 'لازم يكون فيه قسم واحد على الأقل مفعّل.']);
+            return to_route('menus.show', $menuModel)->withErrors(['publish' => 'لازم يكون فيه قسم واحد على الأقل مفعّل.']);
         }
 
         $hasAvailableProduct = $menuModel->categories
@@ -35,7 +35,7 @@ class MenuPublishController extends Controller
             ->contains(fn ($product) => $product->is_available);
 
         if (!$hasAvailableProduct) {
-            return back()->withErrors(['publish' => 'لازم يكون فيه منتج واحد متاح على الأقل.']);
+            return to_route('menus.show', $menuModel)->withErrors(['publish' => 'لازم يكون فيه منتج واحد متاح على الأقل.']);
         }
 
         $menuModel->update(['is_published' => true]);
