@@ -27,6 +27,19 @@ class DatabaseSeeder extends Seeder
                 ['schema' => ['components' => ['header', 'category_nav', 'product_card', 'cart_bar'], 'variants' => ['compact', 'editorial', 'featured']], 'is_active' => $data['key'] !== 'fast-food']
             );
 
+            if ($data['key'] === 'cafe') {
+                $versionTwo = $template->versions()->updateOrCreate(
+                    ['version' => 2],
+                    ['schema' => [
+                        'layout' => 'hero-categories-menu-detail',
+                        'components' => ['sticky_header', 'hero', 'category_tiles', 'category_nav', 'product_list', 'cart_bar', 'product_sheet'],
+                        'visual' => ['direction' => 'rtl', 'surface' => 'dark', 'accent' => 'coffee-gold', 'mobile_first' => true],
+                    ], 'is_active' => true]
+                );
+
+                $versionTwo->activate();
+            }
+
             if ($data['key'] === 'fast-food') {
                 $versionTwo = $template->versions()->updateOrCreate(
                     ['version' => 2],
