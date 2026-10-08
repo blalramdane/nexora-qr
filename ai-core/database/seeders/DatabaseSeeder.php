@@ -21,10 +21,26 @@ class DatabaseSeeder extends Seeder
 
         foreach ($templates as $data) {
             $template = Template::updateOrCreate(['key' => $data['key']], $data);
-            $template->versions()->updateOrCreate(
+
+            $versionOne = $template->versions()->updateOrCreate(
                 ['version' => 1],
-                ['schema' => ['components' => ['header', 'category_nav', 'product_card', 'cart_bar'], 'variants' => ['compact', 'editorial', 'featured']], 'is_active' => true]
+                ['schema' => ['components' => ['header', 'category_nav', 'product_card', 'cart_bar'], 'variants' => ['compact', 'editorial', 'featured']], 'is_active' => $data['key'] !== 'fast-food']
             );
+
+            if ($data['key'] === 'fast-food') {
+                $versionTwo = $template->versions()->updateOrCreate(
+                    ['version' => 2],
+                    ['schema' => [
+                        'layout' => 'hero-categories-menu-detail',
+                        'components' => ['sticky_header', 'hero', 'category_tiles', 'category_nav', 'product_list', 'cart_bar', 'product_sheet'],
+                        'visual' => ['direction' => 'rtl', 'surface' => 'dark', 'accent' => 'gold', 'mobile_first' => true],
+                    ], 'is_active' => true]
+                );
+
+                $versionTwo->activate();
+            } else {
+                $versionOne->activate();
+            }
         }
 
         User::factory()->create([
