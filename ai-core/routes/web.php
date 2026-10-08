@@ -1,9 +1,9 @@
 <?php
 
-use AppHttpControllersAuthController;
-use AppHttpControllersDashboardController;
-use AppHttpControllersMenuController;
-use IlluminateSupportFacadesRoute;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MenuController;
+use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
