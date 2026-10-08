@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Restaurant;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -66,6 +67,8 @@ class AuthController extends Controller
             ]);
 
             $restaurant->users()->attach($user->id, ['role' => 'owner']);
+            app(TenantContext::class)->set($restaurant);
+
             $restaurant->branches()->create([
                 'name' => 'الفرع الرئيسي',
                 'slug' => 'main',
