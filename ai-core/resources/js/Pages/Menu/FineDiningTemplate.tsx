@@ -14,7 +14,7 @@ function Image({ src, alt, className }: { src?: string | null; alt: string; clas
 
 export default function FineDiningTemplate({ menu, restaurantName, preview = false }: Props) {
     const theme = menu.theme ?? { primary: '#d8c18a', accent: '#f0dfae', background: '#080807', foreground: '#f5efe2', radius: 'lg' };
-    const radius = radiusMap[theme.radius as keyof typeof radiusMap] ?? radiusMap.lg;
+    const borderRadius = radiusMap[theme.radius as keyof typeof radiusMap] ?? radiusMap.lg;
     const categories = menu.categories ?? [];
     const products = categories.flatMap((c: any) => c.products ?? []);
     const [activeId, setActiveId] = useState<number | undefined>(categories[0]?.id);
