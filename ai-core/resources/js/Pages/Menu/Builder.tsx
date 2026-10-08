@@ -20,6 +20,7 @@ type Menu = Omit<RenderableMenu, 'categories'> & {
     slug: string;
     is_published: boolean;
     template_id: number | null;
+    theme: { primary: string; accent: string; background: string; foreground: string; radius: 'sm' | 'md' | 'lg' | 'xl' | '2xl' };
     categories: Category[];
 };
 
