@@ -45,7 +45,7 @@ class MenuThemeEditorTest extends TestCase
             'background' => '#FFFFFF',
             'foreground' => '#222222',
             'radius' => 'huge',
-        ])->assertStatus(422);
+        ])->assertSessionHasErrors(['primary', 'accent', 'radius']);
 
         $this->assertSame('#111827', $menu->fresh()->theme['primary']);
     }
