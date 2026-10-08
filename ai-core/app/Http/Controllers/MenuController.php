@@ -1,21 +1,22 @@
 <?php
 
-namespace AppHttpControllers;
+namespace App\Http\Controllers;
 
-use AppModelsMenu;
-use AppModelsTemplate;
-use AppSupportTenancyTenantContext;
-use IlluminateHttpRedirectResponse;
-use IlluminateHttpRequest;
-use IlluminateSupportStr;
-use InertiaInertia;
-use InertiaResponse;
+use App\Models\Menu;
+use App\Models\Template;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class MenuController extends Controller
 {
     public function index(): Response
     {
         $this->authorizeMenuManagement();
+
         return Inertia::render('Menu/Index', [
             'menus' => Menu::query()
                 ->with(['template', 'categories.products.variants'])
@@ -31,6 +32,7 @@ class MenuController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $this->authorizeMenuManagement();
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'template_key' => ['required', 'string', 'exists:templates,key'],
@@ -63,6 +65,7 @@ class MenuController extends Controller
     public function show(int $menu): Response
     {
         $this->authorizeMenuManagement();
+
         $menuModel = Menu::query()
             ->with(['template.activeVersion', 'categories.products.variants'])
             ->findOrFail($menu);
@@ -70,13 +73,17 @@ class MenuController extends Controller
         return Inertia::render('Menu/Builder', [
             'menu' => $menuModel,
             'template' => $menuModel->template,
-            'templates' => Template::query()->where('is_active', true)->orderBy('name')->get(),
+            'templates' => Template::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
     public function update(Request $request, int $menu): RedirectResponse
     {
         $this->authorizeMenuManagement();
+
         $menuModel = Menu::query()->findOrFail($menu);
 
         $data = $request->validate([
@@ -103,6 +110,7 @@ class MenuController extends Controller
     public function destroy(int $menu): RedirectResponse
     {
         $this->authorizeMenuManagement();
+
         $menuModel = Menu::query()->findOrFail($menu);
         $menuModel->delete();
 
@@ -114,7 +122,10 @@ class MenuController extends Controller
         $user = request()->user();
         $restaurant = app(TenantContext::class)->restaurant();
 
-        abort_unless($user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager', 403);
+        abort_unless(
+            $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
+            403
+        );
     }
 
     private function uniqueSlug(string $name, ?int $ignoreId = null): string
@@ -122,10 +133,12 @@ class MenuController extends Controller
         $base = Str::slug($name) ?: 'menu';
         $slug = $base;
 
-        $query = Menu::query()->withoutGlobalScopes()->where('restaurant_id', app(TenantContext::class)->id());
+        $query = Menu::query()
+            ->withoutGlobalScopes()
+            ->where('restaurant_id', app(TenantContext::class)->id());
 
         if ($ignoreId !== null) {
-            $query->whereKeyNot($ignoreId);
+            $query->where('id', '<>', $ignoreId);
         }
 
         $suffix = 2;
