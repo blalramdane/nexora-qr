@@ -103,6 +103,19 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
     };
 
     const previewTemplate = templates.find((item) => item.key === templateKey) ?? template;
+    const previewDraftProduct = productCategoryId && (productName.trim() || productPrice || productDescription.trim() || productImage.trim())
+        ? {
+            id: -1,
+            name: productName.trim() || 'اسم المنتج',
+            description: productDescription.trim() || 'وصف المنتج يظهر هنا',
+            price: productPrice || '0',
+            image_path: productImage.trim() || null,
+            is_available: true,
+            is_featured: productFeatured,
+            sort_order: -1,
+        }
+        : null;
+
     const previewMenu: Menu = {
         ...menu,
         name,
@@ -114,6 +127,11 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
             foreground: themeForeground,
             radius: themeRadius,
         },
+        categories: menu.categories.map((category) =>
+            category.id === productCategoryId && previewDraftProduct
+                ? { ...category, products: [previewDraftProduct, ...category.products] }
+                : category,
+        ),
     };
 
     const [previewDevice, setPreviewDevice] = useState<'mobile' | 'tablet' | 'desktop'>('mobile');
@@ -773,7 +791,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                                 <div className={previewDevice === 'mobile' ? 'overflow-hidden rounded-[2.5rem] border-[8px] border-slate-900 bg-black shadow-2xl' : 'overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-2xl'}>
                                     {previewDevice === 'mobile' && <div className="flex h-7 items-center justify-center bg-slate-900"><div className="h-1.5 w-20 rounded-full bg-white/20" /></div>}
                                     <div className={previewDevice === 'mobile' ? 'max-h-[720px] overflow-y-auto' : 'max-h-[760px] overflow-y-auto'}>
-                                        <TemplateRenderer menu={previewMenu} restaurantName="NEXORA Preview" preview />
+                                        <TemplateRenderer menu={previewMenu} restaurantName="NEXORA Preview" preview previewCategoryId={productCategoryId ?? undefined} />
                                     </div>
                                 </div>
                             </div>
