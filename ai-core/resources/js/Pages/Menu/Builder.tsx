@@ -44,6 +44,8 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
     const [productDescription, setProductDescription] = useState('');
     const [productPrice, setProductPrice] = useState('');
     const [productImage, setProductImage] = useState('');
+    const [productImageFile, setProductImageFile] = useState<File | null>(null);
+    const [productImagePreview, setProductImagePreview] = useState<string | null>(null);
     const [productFeatured, setProductFeatured] = useState(false);
     const [editingProductId, setEditingProductId] = useState<number | null>(null);
     const [editingProductName, setEditingProductName] = useState('');
@@ -218,23 +220,62 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
     const addProduct = (event: FormEvent, categoryId: number) => {
         event.preventDefault();
         if (!productName.trim() || !productPrice) return;
-        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products', {
-            name: productName,
-            description: productDescription || null,
+
+        const payload: Record<string, string | boolean | File | null> = {
+            name: productName.trim(),
+            description: productDescription.trim() || null,
             price: productPrice,
-            image_path: productImage || null,
+            image_path: productImage.trim() || null,
             is_featured: productFeatured,
-        }, {
+        };
+
+        if (productImageFile) {
+            payload.image = productImageFile;
+        }
+
+        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products', payload, {
+            forceFormData: Boolean(productImageFile),
             onSuccess: () => {
                 setProductName('');
                 setProductDescription('');
                 setProductPrice('');
                 setProductImage('');
+                setProductImageFile(null);
+                setProductImagePreview(null);
                 setProductFeatured(false);
                 setProductCategoryId(null);
             },
         });
     };
+
+    const selectNewProductImage = (file: File) => {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) return;
+        setProductImageFile(file);
+        setProductImagePreview(URL.createObjectURL(file));
+    };
+
+    const handleNewProductImageInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) selectNewProductImage(file);
+        event.target.value = '';
+    };
+
+    const handleNewProductImageDrop = (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const file = event.dataTransfer.files?.[0];
+        if (file) selectNewProductImage(file);
+    };
+
+    const clearNewProductImage = () => {
+        setProductImageFile(null);
+        setProductImagePreview(null);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (productImagePreview) URL.revokeObjectURL(productImagePreview);
+        };
+    }, [productImagePreview]);
 
     const uploadProductImage = (file: File, categoryId: number, productId: number) => {
         if (!file.type.startsWith('image/')) return;
@@ -669,7 +710,35 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                                             <textarea value={productDescription} onChange={(e) => setProductDescription(e.target.value)} placeholder="الوصف" maxLength={2000} rows={2} className="w-full rounded-lg border px-3 py-2" />
                                             <div className="grid grid-cols-2 gap-2">
                                                 <input value={productPrice} onChange={(e) => setProductPrice(e.target.value)} type="number" min="0" step="0.01" placeholder="السعر" required className="rounded-lg border px-3 py-2" />
-                                                <input value={productImage} onChange={(e) => setProductImage(e.target.value)} placeholder="رابط الصورة" className="rounded-lg border px-3 py-2" />
+                                                <input value={productImage} onChange={(e) => setProductImage(e.target.value)} placeholder="رابط الصورة (اختياري)" className="rounded-lg border px-3 py-2" />
+                                            </div>
+                                            <div
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDrop={handleNewProductImageDrop}
+                                                className="overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50"
+                                            >
+                                                <div className="flex items-center gap-3 p-3">
+                                                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-200">
+                                                        {productImagePreview ? (
+                                                            <img src={productImagePreview} alt="" className="h-full w-full object-cover" />
+                                                        ) : productImage.trim() ? (
+                                                            <img src={productImage.startsWith('http') || productImage.startsWith('/') ? productImage : '/storage/' + productImage} alt="" className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            <div className="flex h-full items-center justify-center text-2xl">🍽️</div>
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-xs font-black">صورة المنتج</p>
+                                                        <p className="mt-1 text-[10px] text-slate-400">اسحب الصورة هنا أو اختار ملف · JPG / PNG / WebP · حتى 5MB</p>
+                                                        <label className="mt-2 inline-flex cursor-pointer rounded-lg bg-slate-900 px-2.5 py-1.5 text-[10px] font-black text-white">
+                                                            {productImageFile ? 'تغيير الصورة' : 'اختيار صورة'}
+                                                            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleNewProductImageInput} />
+                                                        </label>
+                                                        {productImageFile && (
+                                                            <button type="button" onClick={clearNewProductImage} className="mr-2 rounded-lg border border-red-200 px-2.5 py-1.5 text-[10px] font-bold text-red-600">مسح</button>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                             <label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={productFeatured} onChange={(e) => setProductFeatured(e.target.checked)} /> مميز</label>
                                             <button type="submit" className="w-full rounded-lg bg-amber-500 px-3 py-2 text-xs font-black text-white">إضافة المنتج</button>
