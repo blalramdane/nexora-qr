@@ -36,7 +36,9 @@ export default function FineDiningTemplate({ menu, restaurantName, preview = fal
     const selectedVariant = selected?.variants?.find((v: any) => v.id === variant);
     const price = selected ? Number(selected.price) + (selectedVariant?.price ? Number(selectedVariant.price) - Number(selected.price) : Number(selectedVariant?.price_delta ?? 0)) : 0;
 
-    return (\n        <>\n        <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-fine min-h-screen overflow-x-hidden bg-[#080807]">
+    return (
+        <>
+            <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-fine min-h-screen overflow-x-hidden bg-[#080807]">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-[#080807]/90 backdrop-blur-xl">
                 <div className="mx-auto flex h-[72px] max-w-5xl items-center justify-between px-5">
                     <button type="button" aria-label="القائمة" className="grid h-10 w-10 place-items-center border border-white/10 text-lg text-white/70" style={{ borderRadius: '999px' }}>☰</button>
@@ -125,5 +127,6 @@ export default function FineDiningTemplate({ menu, restaurantName, preview = fal
                 </div>
             </div>}
         </div>
+        </>
     );
 }
