@@ -10,7 +10,9 @@ type Category = {
     description?: string | null;
     sort_order: number;
     is_active: boolean;
-    products: Array<{ id: number; name: string; description?: string | null; price: string; image_path?: string | null; is_available: boolean; is_featured: boolean; variants?: Array<{ id: number; name: string; price?: string | null; price_delta?: string; sort_order: number; is_active: boolean }> }>;
+    products: Array<{ id: number; name: string; description?: string | null; price: string; image_path?: string | null; is_available: boolean; is_featured: boolean; variants?: Array<{ id: number; name: string; price?: string | null; price_delta?: string; sort_order: number; is_active: boolean }>;
+        modifiers?: Array<{ id: number; name: string; price_delta: string; sort_order: number; is_required: boolean; is_active: boolean }>;
+    }>;
 };
 type RenderableMenu = Parameters<typeof TemplateRenderer>[0]['menu'];
 type Menu = Omit<RenderableMenu, 'categories'> & {
@@ -48,6 +50,14 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
     const [editingVariantPricingMode, setEditingVariantPricingMode] = useState<'fixed' | 'delta'>('fixed');
     const [editingVariantPrice, setEditingVariantPrice] = useState('');
     const [editingVariantDelta, setEditingVariantDelta] = useState('');
+    const [modifierProductId, setModifierProductId] = useState<number | null>(null);
+    const [modifierName, setModifierName] = useState('');
+    const [modifierDelta, setModifierDelta] = useState('');
+    const [modifierRequired, setModifierRequired] = useState(false);
+    const [editingModifierId, setEditingModifierId] = useState<number | null>(null);
+    const [editingModifierName, setEditingModifierName] = useState('');
+    const [editingModifierDelta, setEditingModifierDelta] = useState('');
+    const [editingModifierRequired, setEditingModifierRequired] = useState(false);
 
     const save = (event: FormEvent) => {
         event.preventDefault();
@@ -251,6 +261,65 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
         router.post('/menus/' + menu.id + '/categories/reorder', { category_ids: ids });
     };
 
+    const addModifier = (event: FormEvent, categoryId: number, productId: number) => {
+        event.preventDefault();
+        if (!modifierName.trim() || !modifierDelta) return;
+        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers', {
+            name: modifierName,
+            price_delta: modifierDelta,
+            is_required: modifierRequired,
+            is_active: true,
+        }, { onSuccess: () => {
+            setModifierName(''); setModifierDelta(''); setModifierRequired(false); setModifierProductId(null);
+        }});
+    };
+
+    const startEditingModifier = (modifier: NonNullable<Category['products'][number]['modifiers']>[number]) => {
+        setEditingModifierId(modifier.id);
+        setEditingModifierName(modifier.name);
+        setEditingModifierDelta(modifier.price_delta);
+        setEditingModifierRequired(modifier.is_required);
+    };
+
+    const saveModifier = (event: FormEvent, categoryId: number, productId: number, modifierId: number) => {
+        event.preventDefault();
+        if (!editingModifierName.trim() || !editingModifierDelta) return;
+        const product = menu.categories.find(c => c.id === categoryId)?.products.find(p => p.id === productId);
+        const modifier = product?.modifiers?.find(m => m.id === modifierId);
+        if (!modifier) return;
+        router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/' + modifierId, {
+            name: editingModifierName,
+            price_delta: editingModifierDelta,
+            is_required: editingModifierRequired,
+            is_active: modifier.is_active,
+            sort_order: modifier.sort_order,
+        }, { onSuccess: () => setEditingModifierId(null) });
+    };
+
+    const toggleModifier = (categoryId: number, productId: number, modifier: NonNullable<Category['products'][number]['modifiers']>[number]) => {
+        router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/' + modifier.id, {
+            name: modifier.name,
+            price_delta: modifier.price_delta,
+            is_required: modifier.is_required,
+            is_active: !modifier.is_active,
+            sort_order: modifier.sort_order,
+        });
+    };
+
+    const deleteModifier = (categoryId: number, productId: number, modifierId: number) => {
+        if (window.confirm('حذف الـ Modifier؟')) {
+            router.delete('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/' + modifierId);
+        }
+    };
+
+    const moveModifier = (categoryId: number, productId: number, modifiers: NonNullable<Category['products'][number]['modifiers']>, index: number, direction: -1 | 1) => {
+        const nextIndex = index + direction;
+        if (nextIndex < 0 || nextIndex >= modifiers.length) return;
+        const ids = modifiers.map(m => m.id);
+        [ids[index], ids[nextIndex]] = [ids[nextIndex], ids[index]];
+        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/reorder', { modifier_ids: ids });
+    };
+
     return (
         <div dir="rtl" className="min-h-screen bg-slate-100">
             <Head title={'Builder · ' + menu.name} />
@@ -421,6 +490,48 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                                         </div>
                                                     ))}
                                                     {(product.variants ?? []).length === 0 && <p className="py-1 text-center text-[10px] text-slate-400">مفيش Variants.</p>}
+                                                </div>
+                                            </div>
+                                            <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50/40 p-2">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-[11px] font-black text-emerald-700">MODIFIERS · {product.modifiers?.length ?? 0}</span>
+                                                    <button type="button" onClick={() => setModifierProductId(modifierProductId === product.id ? null : product.id)} className="rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[11px] font-bold">{modifierProductId === product.id ? 'إغلاق' : '+ Modifier'}</button>
+                                                </div>
+                                                {modifierProductId === product.id && (
+                                                    <form onSubmit={(e) => addModifier(e, category.id, product.id)} className="mt-2 space-y-2">
+                                                        <input value={modifierName} onChange={(e) => setModifierName(e.target.value)} placeholder="مثال: Extra Cheese" maxLength={120} required className="w-full rounded-lg border px-2 py-1.5 text-xs" />
+                                                        <div className="grid grid-cols-[1fr_auto] gap-2">
+                                                            <input value={modifierDelta} onChange={(e) => setModifierDelta(e.target.value)} type="number" step="0.01" placeholder="+ / - من السعر" required className="rounded-lg border px-2 py-1.5 text-xs" />
+                                                            <label className="flex items-center gap-1 rounded-lg border bg-white px-2 text-[10px] font-bold"><input type="checkbox" checked={modifierRequired} onChange={(e) => setModifierRequired(e.target.checked)} /> مطلوب</label>
+                                                        </div>
+                                                        <button type="submit" className="w-full rounded-lg bg-emerald-600 px-2 py-1.5 text-xs font-black text-white">إضافة Modifier</button>
+                                                    </form>
+                                                )}
+                                                <div className="mt-2 space-y-1.5">
+                                                    {(product.modifiers ?? []).map((modifier, modifierIndex, modifiers) => (
+                                                        <div key={modifier.id} className={'rounded-lg p-2 ' + (modifier.is_active ? 'bg-white' : 'bg-slate-100 opacity-60')}>
+                                                            {editingModifierId === modifier.id ? (
+                                                                <form onSubmit={(e) => saveModifier(e, category.id, product.id, modifier.id)} className="space-y-2">
+                                                                    <input value={editingModifierName} onChange={(e) => setEditingModifierName(e.target.value)} required className="w-full rounded border px-2 py-1 text-xs" />
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        <input value={editingModifierDelta} onChange={(e) => setEditingModifierDelta(e.target.value)} type="number" step="0.01" required className="rounded border px-2 py-1 text-xs" />
+                                                                        <label className="flex items-center gap-1 rounded border px-2 text-[10px] font-bold"><input type="checkbox" checked={editingModifierRequired} onChange={(e) => setEditingModifierRequired(e.target.checked)} /> مطلوب</label>
+                                                                    </div>
+                                                                    <div className="flex gap-1.5"><button type="submit" className="flex-1 rounded bg-slate-900 px-2 py-1 text-[11px] font-bold text-white">حفظ</button><button type="button" onClick={() => setEditingModifierId(null)} className="rounded border px-2 py-1 text-[11px] font-bold">إلغاء</button></div>
+                                                                </form>
+                                                            ) : (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-black">{modifier.name}</p><p className="text-[10px] text-slate-500">{Number(modifier.price_delta) >= 0 ? '+' : ''}{Number(modifier.price_delta).toFixed(2)} ج.م · {modifier.is_required ? 'مطلوب' : 'اختياري'}</p></div>
+                                                                    <button type="button" disabled={modifierIndex === 0} onClick={() => moveModifier(category.id, product.id, modifiers, modifierIndex, -1)} className="rounded border px-1.5 text-[10px] disabled:opacity-30">↑</button>
+                                                                    <button type="button" disabled={modifierIndex === modifiers.length - 1} onClick={() => moveModifier(category.id, product.id, modifiers, modifierIndex, 1)} className="rounded border px-1.5 text-[10px] disabled:opacity-30">↓</button>
+                                                                    <button type="button" onClick={() => startEditingModifier(modifier)} className="rounded border px-1.5 py-1 text-[10px]">تعديل</button>
+                                                                    <button type="button" onClick={() => toggleModifier(category.id, product.id, modifier)} className="rounded border px-1.5 py-1 text-[10px]">{modifier.is_active ? 'إخفاء' : 'تفعيل'}</button>
+                                                                    <button type="button" onClick={() => deleteModifier(category.id, product.id, modifier.id)} className="rounded border border-red-200 px-1.5 py-1 text-[10px] text-red-600">حذف</button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                    {(product.modifiers ?? []).length === 0 && <p className="py-1 text-center text-[10px] text-slate-400">مفيش Modifiers.</p>}
                                                 </div>
                                             </div>
                                         ))}
