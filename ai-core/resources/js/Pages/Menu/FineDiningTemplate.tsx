@@ -113,7 +113,7 @@ export default function FineDiningTemplate({ menu, restaurantName, preview = fal
             </div>
 
             {selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-md sm:items-center sm:p-5" onClick={close}>
-                <div role="dialog" aria-modal="true" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto border border-white/10 bg-[#0d0c0a] shadow-2xl sm:max-h-[88vh]" style={{ borderRadius: radius + ' ' + radius + ' 0 0' }} onClick={e => e.stopPropagation()}>
+                <div role="dialog" aria-modal="true" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto border border-white/10 bg-[#0d0c0a] shadow-2xl sm:max-h-[88vh]" style={{ borderRadius: borderRadius + ' ' + borderRadius + ' 0 0' }} onClick={e => e.stopPropagation()}>
                     <div className="relative"><div className="aspect-[1.4]"><Image src={imageUrl(selected.image_path)} alt={selected.name} className="h-full w-full object-cover" /></div><div className="absolute inset-0 bg-gradient-to-t from-[#0d0c0a] via-transparent to-black/10" /><button type="button" onClick={close} className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white">×</button></div>
                     <div className="p-6 sm:p-8">
                         <div className="flex items-start justify-between gap-6"><div><p className="text-[8px] uppercase tracking-[0.35em]" style={{ color: theme.accent }}>Chef selection</p><h2 className="mt-2 font-serif text-3xl">{selected.name}</h2><p className="mt-3 text-xs leading-7 text-white/45">{selected.description}</p></div><strong className="shrink-0 font-serif text-lg" style={{ color: theme.accent }}>{money(price)}</strong></div>
