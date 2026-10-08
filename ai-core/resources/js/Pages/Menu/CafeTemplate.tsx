@@ -7,6 +7,8 @@ const imageUrl = (path?: string | null) =>
     path && (path.startsWith('http') || path.startsWith('/')) ? path : path ? '/storage/' + path : null;
 const radiusMap = { sm: '0.65rem', md: '0.85rem', lg: '1rem', xl: '1.25rem', '2xl': '1.75rem' } as const;
 
+const motionCss = "@keyframes nxSteam{0%{opacity:0;transform:translateY(12px) scaleX(.8)}45%{opacity:.35}100%{opacity:0;transform:translateY(-26px) scaleX(1.15)}}@keyframes nxGlow{0%,100%{opacity:.25}50%{opacity:.55}}.nx-cafe{background-image:radial-gradient(circle at 20% 0%,rgba(214,164,91,.13),transparent 25%),linear-gradient(180deg,rgba(255,255,255,.015),transparent 28%)}.nx-cafe-hero{isolation:isolate;box-shadow:0 28px 80px rgba(0,0,0,.34)}.nx-cafe-hero:after{content:'';position:absolute;width:180px;height:180px;left:-70px;top:20px;border-radius:999px;background:rgba(214,164,91,.16);filter:blur(45px);animation:nxGlow 6s ease-in-out infinite;pointer-events:none}.nx-steam{position:absolute;width:2px;height:34px;border-radius:99px;background:linear-gradient(transparent,rgba(255,255,255,.25),transparent);filter:blur(1px);animation:nxSteam 3.8s ease-in-out infinite}.nx-cafe-card{transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s,border-color .3s}.nx-cafe-card:hover{transform:translateY(-4px);box-shadow:0 20px 44px rgba(0,0,0,.28);border-color:rgba(214,164,91,.3)!important}@media(prefers-reduced-motion:reduce){.nx-cafe-hero:after,.nx-steam{animation:none}.nx-cafe-card{transition:none}}";
+
 function Image({ src, alt, className }: { src?: string | null; alt: string; className: string }) {
     return src ? <img src={src} alt={alt} className={className} loading="lazy" /> :
         <div className={className + ' flex items-center justify-center bg-[radial-gradient(circle_at_50%_20%,#8a5b32,transparent_45%),linear-gradient(135deg,#24170f,#090706)] text-4xl'}>☕</div>;
@@ -33,8 +35,7 @@ export default function CafeTemplate({ menu, restaurantName, preview = false }: 
     const selectedVariant = selected?.variants?.find((v: any) => v.id === variant);
     const price = selected ? Number(selected.price) + (selectedVariant?.price ? Number(selectedVariant.price) - Number(selected.price) : Number(selectedVariant?.price_delta ?? 0)) : 0;
 
-    return (
-        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="min-h-screen overflow-x-hidden bg-[#0d0907]">
+    return (\n        <>\n        <style>{motionCss}</style>\n        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="nx-cafe min-h-screen overflow-x-hidden bg-[#0d0907]">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0d0907]/90 backdrop-blur-xl">
                 <div className="mx-auto flex h-[68px] max-w-3xl items-center justify-between px-4">
                     <button type="button" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-xl">☰</button>
@@ -53,7 +54,7 @@ export default function CafeTemplate({ menu, restaurantName, preview = false }: 
 
             <main className="mx-auto max-w-3xl pb-28">
                 <section className="relative px-3 pt-3">
-                    <div className="relative overflow-hidden border border-white/10 shadow-2xl" style={{ borderRadius: '0 0 ' + radius + ' ' + radius }}>
+                    <div className="nx-cafe-hero relative overflow-hidden border border-white/10 shadow-2xl" style={{ borderRadius: '0 0 ' + radius + ' ' + radius }}>
                         <div className="aspect-[0.9] min-h-[390px]">
                             <Image src={imageUrl(hero?.image_path)} alt={hero?.name ?? menu.name} className="h-full w-full object-cover" />
                         </div>
