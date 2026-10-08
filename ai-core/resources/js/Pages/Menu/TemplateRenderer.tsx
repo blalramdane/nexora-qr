@@ -44,7 +44,7 @@ export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restau
     const categories = menu.categories;
     const current = categories.find(c => c.id === active) || categories[0];
     const key = menu.template?.key || 'fast-food';
-    const version = Number((menu as any).templateVersion?.version ?? 1);
+    const version = Number((menu as any).templateVersion?.version ?? (preview ? 2 : 1));
 
     if (key === 'fast-food' && version >= 2) {
         return <FastFoodTemplate menu={menu} restaurantName={restaurantName} preview={preview} />;
