@@ -78,12 +78,12 @@ class ModifierBuilderTest extends TestCase
 
         $this->actingAs($user)->post($this->url($menu, $category, $product), [
             'name' => 'Missing Price',
-        ])->assertStatus(422);
+        ])->assertSessionHasErrors('price_delta');
 
         $this->actingAs($user)->post($this->url($menu, $category, $product), [
             'name' => 'Negative Too Large',
             'price_delta' => -100000000,
-        ])->assertStatus(422);
+        ])->assertSessionHasErrors('price_delta');
 
         $this->assertDatabaseCount('modifiers', 0);
     }
