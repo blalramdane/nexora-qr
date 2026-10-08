@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "project": "nexora-qr",
+  "provider_strategy": "internal-registry",
+  "secret_policy": "environment-only",
+  "roles": {
+    "coding-primary": {
+      "required_capabilities": ["read_repo", "edit_files", "run_commands", "inspect_failures"],
+      "command_env": "NEXORA_AGENT_CMD"
+    },
+    "coding-review": {
+      "required_capabilities": ["read_repo", "review_diff", "run_tests"],
+      "command_env": "NEXORA_REVIEW_AGENT_CMD"
+    },
+    "test-verifier": {
+      "required_capabilities": ["run_tests", "run_build", "run_e2e", "report_evidence"],
+      "command_env": "NEXORA_VERIFY_CMD"
+    },
+    "research": {
+      "required_capabilities": ["web_research", "source_citation", "dependency_review"],
+      "command_env": "NEXORA_RESEARCH_CMD"
+    },
+    "design": {
+      "required_capabilities": ["ui_review", "accessibility_review", "visual_review"],
+      "command_env": "NEXORA_DESIGN_CMD"
+    }
+  },
+  "routing": {
+    "implementation": ["coding-primary", "test-verifier", "coding-review"],
+    "bug_fix": ["coding-primary", "test-verifier", "coding-review"],
+    "research_dependency": ["research", "coding-primary"],
+    "visual_feature": ["design", "coding-primary", "test-verifier"],
+    "release": ["test-verifier", "coding-review"]
+  },
+  "human_gates": ["merge", "production_deploy", "scope_change", "credential_change"]
+}

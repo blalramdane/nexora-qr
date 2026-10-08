@@ -1,9 +1,9 @@
-name: Nexora QR Phase 0
+name: Nexora QR Phase 1
 
 on:
   push:
     branches:
-      - feat/phase-0-foundation
+      - feat/phase-1-menu-design
   pull_request:
 
 permissions:
@@ -22,9 +22,13 @@ jobs:
           extensions: mbstring, sqlite3, pdo_sqlite
           coverage: none
 
-      - name: Refresh Composer dependencies
+      - name: Install Composer dependencies
         working-directory: ai-core
-        run: composer update inertiajs/inertia-laravel --with-all-dependencies --no-interaction --prefer-dist
+        run: composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
+
+      - name: Prepare Laravel test environment
+        working-directory: ai-core
+        run: cp .env.example .env
 
       - name: Run backend tests
         working-directory: ai-core

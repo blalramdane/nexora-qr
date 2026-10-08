@@ -11,30 +11,19 @@ class Restaurant extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'name',
-        'slug',
-        'phone',
-        'whatsapp_phone',
-        'logo_path',
-        'timezone',
-        'is_active',
-    ];
+    protected $fillable = ['name','slug','phone','whatsapp_phone','logo_path','timezone','is_active'];
 
     protected function casts(): array
     {
         return ['is_active' => 'boolean'];
     }
 
-    public function branches(): HasMany
-    {
-        return $this->hasMany(Branch::class);
-    }
+    public function branches(): HasMany { return $this->hasMany(Branch::class); }
+    public function menus(): HasMany { return $this->hasMany(Menu::class); }
 
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'restaurant_users')
-            ->withPivot('role')
-            ->withTimestamps();
+            ->withPivot('role')->withTimestamps();
     }
 }
