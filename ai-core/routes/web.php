@@ -6,6 +6,7 @@ use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MenuCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductVariantController;
+use App\Http\Controllers\ModifierController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
