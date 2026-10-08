@@ -102,6 +102,22 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
         router.post('/menus/' + menu.id + '/unpublish');
     };
 
+    const previewTemplate = templates.find((item) => item.key === templateKey) ?? template;
+    const previewMenu: Menu = {
+        ...menu,
+        name,
+        template: previewTemplate,
+        theme: {
+            primary: themePrimary,
+            accent: themeAccent,
+            background: themeBackground,
+            foreground: themeForeground,
+            radius: themeRadius,
+        },
+    };
+
+    const [previewDevice, setPreviewDevice] = useState<'mobile' | 'tablet' | 'desktop'>('mobile');
+
 
 
     const addCategory = (event: FormEvent) => {
@@ -714,8 +730,55 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                     </section>
                 </aside>
 
-                <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl">
-                    <TemplateRenderer menu={{ ...menu, template }} restaurantName="NEXORA Preview" preview />
+                <section className="min-w-0 overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-950 shadow-2xl">
+                    <div className="border-b border-white/10 bg-slate-950 px-4 py-3 text-white">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">LIVE PREVIEW</p>
+                                    <p className="text-xs text-white/60">كل تغيير في الـTheme والاسم والـTemplate يظهر هنا فورًا</p>
+                                </div>
+                                <span className="hidden rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-black text-emerald-300 sm:inline-flex">● LIVE DRAFT</span>
+                            </div>
+                            <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
+                                {([
+                                    ['mobile', 'Mobile'],
+                                    ['tablet', 'Tablet'],
+                                    ['desktop', 'Desktop'],
+                                ] as const).map(([device, label]) => (
+                                    <button
+                                        key={device}
+                                        type="button"
+                                        onClick={() => setPreviewDevice(device)}
+                                        className={'rounded-lg px-3 py-1.5 text-[10px] font-black transition ' + (previewDevice === device ? 'bg-white text-slate-900 shadow' : 'text-white/60 hover:text-white')}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="nx-studio-grid min-h-[760px] overflow-auto p-4 sm:p-6 lg:p-8">
+                        <div className="mx-auto transition-[width] duration-300 ease-out">
+                            <div
+                                className={
+                                    previewDevice === 'mobile'
+                                        ? 'w-[390px] max-w-full'
+                                        : previewDevice === 'tablet'
+                                            ? 'w-[768px] max-w-full'
+                                            : 'w-full max-w-[1100px]'
+                                }
+                            >
+                                <div className={previewDevice === 'mobile' ? 'overflow-hidden rounded-[2.5rem] border-[8px] border-slate-900 bg-black shadow-2xl' : 'overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-2xl'}>
+                                    {previewDevice === 'mobile' && <div className="flex h-7 items-center justify-center bg-slate-900"><div className="h-1.5 w-20 rounded-full bg-white/20" /></div>}
+                                    <div className={previewDevice === 'mobile' ? 'max-h-[720px] overflow-y-auto' : 'max-h-[760px] overflow-y-auto'}>
+                                        <TemplateRenderer menu={previewMenu} restaurantName="NEXORA Preview" preview />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </section>
             </main>
         </div>
