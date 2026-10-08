@@ -1,9 +1,9 @@
-name: Nexora QR Phase 0
+name: Nexora QR Phase 1
 
 on:
   push:
     branches:
-      - feat/phase-0-foundation
+      - feat/phase-1-menu-design
   pull_request:
 
 permissions:
