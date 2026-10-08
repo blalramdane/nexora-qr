@@ -44,10 +44,10 @@ export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restau
     const categories = menu.categories;
 
     useEffect(() => {
-        if (previewCategoryId && categories.some((category) => category.id === previewCategoryId)) {
+        if (previewCategoryId && menu.categories.some((category) => category.id === previewCategoryId)) {
             setActive(previewCategoryId);
         }
-    }, [previewCategoryId, categories]);
+    }, [previewCategoryId, menu.categories]);
     const current = categories.find(c => c.id === active) || categories[0];
     const key = menu.template?.key || 'fast-food';
     const version = Number((menu as any).templateVersion?.version ?? (preview ? 2 : 1));
