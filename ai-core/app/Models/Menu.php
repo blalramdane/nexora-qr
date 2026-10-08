@@ -12,7 +12,7 @@ class Menu extends Model
 {
     use BelongsToRestaurant, HasFactory;
 
-    protected $fillable = ['restaurant_id', 'template_id', 'name', 'slug', 'theme', 'is_published'];
+    protected $fillable = ['restaurant_id', 'template_id', 'template_version_id', 'name', 'slug', 'theme', 'is_published'];
 
     protected function casts(): array
     {
@@ -22,6 +22,11 @@ class Menu extends Model
     public function template(): BelongsTo
     {
         return $this->belongsTo(Template::class);
+    }
+
+    public function templateVersion(): BelongsTo
+    {
+        return $this->belongsTo(TemplateVersion::class);
     }
 
     public function categories(): HasMany
