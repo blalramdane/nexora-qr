@@ -13,11 +13,14 @@ final class RestaurantScope implements Scope
     {
         $context = app(TenantContext::class);
 
-        if ($context->hasTenant()) {
-            $builder->where(
-                $model->qualifyColumn('restaurant_id'),
-                $context->id()
-            );
+        if (!$context->hasTenant()) {
+            $builder->whereRaw('1 = 0');
+            return;
         }
+
+        $builder->where(
+            $model->qualifyColumn('restaurant_id'),
+            $context->id()
+        );
     }
 }
