@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PLAN="$ROOT/.nexora/execution-plan.json"
 STATE="$ROOT/.nexora/state.json"
 PROTOCOL="$ROOT/.nexora/AGENT-PROTOCOL.md"
