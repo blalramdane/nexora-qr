@@ -1,10 +1,10 @@
 {
-  "project":"nexora-qr",
-  "status":"active",
-  "current_step":"01",
-  "last_verified_step":null,
-  "repair_attempts":0,
-  "blocked":false,
-  "block_reason":null,
-  "last_run":null
+  "project": "nexora-qr",
+  "status": "active",
+  "current_step": "02",
+  "last_verified_step": "01",
+  "repair_attempts": 0,
+  "blocked": false,
+  "block_reason": null,
+  "last_run": "2026-10-08T18:55:00+03:00"
 }
