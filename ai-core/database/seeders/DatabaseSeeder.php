@@ -40,7 +40,7 @@ class DatabaseSeeder extends Seeder
                 $versionTwo->activate();
             }
 
-            if ($data['key'] === 'fast-food') {
+            elseif ($data['key'] === 'fast-food') {
                 $versionTwo = $template->versions()->updateOrCreate(
                     ['version' => 2],
                     ['schema' => [
