@@ -33,7 +33,7 @@ class Restaurant extends Model
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class)
+        return $this->belongsToMany(User::class, 'restaurant_users')
             ->withPivot('role')
             ->withTimestamps();
     }
