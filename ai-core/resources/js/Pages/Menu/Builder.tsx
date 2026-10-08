@@ -473,16 +473,6 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                                             <span className="text-[10px] text-slate-400">JPG / PNG / WebP · حتى 5MB</span>
                                                         </div>
                                                     </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="truncate text-sm font-black">{product.name}</p>
-                                                            <p className="text-xs text-slate-500">{Number(product.price).toFixed(2)} ج.م · {product.is_available ? 'متاح' : 'مخفي'}{product.is_featured ? ' · ⭐ مميز' : ''}</p>
-                                                        </div>
-                                                        <button type="button" disabled={index === 0} onClick={() => moveProduct(category, index, -1)} className="rounded border px-1.5 text-xs disabled:opacity-30">↑</button>
-                                                        <button type="button" disabled={index === category.products.length - 1} onClick={() => moveProduct(category, index, 1)} className="rounded border px-1.5 text-xs disabled:opacity-30">↓</button>
-                                                        <button type="button" onClick={() => startEditingProduct(product)} className="rounded border px-2 py-1 text-xs">تعديل</button>
-                                                        <button type="button" onClick={() => toggleProduct(category, product)} className="rounded border px-2 py-1 text-xs">{product.is_available ? 'إخفاء' : 'تفعيل'}</button>
-                                                        <button type="button" onClick={() => deleteProduct(category, product)} className="rounded border border-red-200 px-2 py-1 text-xs text-red-600">حذف</button>
-                                                    </div>
                                                 )}
                                             </div>
                                             <div className="mt-2 rounded-xl border border-slate-200 bg-white p-2">
