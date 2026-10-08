@@ -29,6 +29,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/menus/{menu}', [MenuController::class, 'update'])->name('menus.update');
 Route::put('/menus/{menu}/theme', [MenuController::class, 'updateTheme'])->name('menus.theme.update');
         Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->name('menus.destroy');
+        Route::post('/menus/{menu}/publish', [MenuController::class, 'publish'])->name('menus.publish');
+        Route::post('/menus/{menu}/unpublish', [MenuController::class, 'unpublish'])->name('menus.unpublish');
         Route::post('/menus/{menu}/publish', [MenuPublishController::class, 'publish'])->name('menus.publish');
         Route::post('/menus/{menu}/unpublish', [MenuPublishController::class, 'unpublish'])->name('menus.unpublish');
 
