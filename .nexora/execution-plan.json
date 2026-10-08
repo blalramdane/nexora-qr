@@ -61,7 +61,7 @@
     {
       "id": "06",
       "name": "Image Pipeline",
-      "status": "pending",
+      "status": "verified",
       "verification": [
         "backend",
         "security",
