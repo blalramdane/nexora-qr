@@ -1,45 +1,58 @@
 # NEXORA QR — Agent Provider Contract
 
-The repository runner is provider-neutral.
+The NEXORA QR repository owns the provider contracts and routing policy under `.nexora/providers/` and `.nexora/agents/`.
 
-## Required contract
+## Runtime variables
 
-Set:
+- `NEXORA_AGENT_CMD` — primary builder
+- `NEXORA_REVIEW_AGENT_CMD` — independent reviewer
+- `NEXORA_VERIFY_CMD` — verification runtime
+- `NEXORA_RESEARCH_CMD` — optional research runtime
+- `NEXORA_DESIGN_CMD` — optional visual/design reviewer
 
-`NEXORA_AGENT_CMD`
+Commands are injected by the execution environment. **Never commit credentials or provider-specific secrets.**
 
-to an approved coding-agent command available in the execution environment.
+## Required implementation capabilities
 
-The command receives the generated task prompt on stdin.
-
-## Security
-
-- Never commit API keys or provider credentials.
-- Prefer environment/secret-manager injection.
-- Never grant production credentials to the autonomous coding agent.
-- Keep merge and deployment human-controlled.
-- Restrict repository permissions to the minimum required.
-- Use a disposable or isolated workspace for autonomous runs when possible.
-
-## Provider requirements
-
-The selected provider/runtime must be able to:
+A provider used for implementation must be able to:
 1. read the repository
 2. edit files
 3. run tests/builds
 4. inspect failures
 5. make bounded repairs
-6. update the NEXORA state/run log
-7. return a machine-readable or clearly structured execution summary
+6. update NEXORA state/run logs
+7. return a structured execution result
 
-## Recommended architecture
+## Internal architecture
 
 Repository control plane
-→ isolated coding-agent runtime
-→ test/build environment
-→ Git branch
-→ CI verification
+→ provider registry
+→ agent role routing
+→ isolated runtime
+→ tests/build/E2E
+→ CI
 → human review
 → merge
 
-The provider is replaceable; the NEXORA execution protocol is the stable contract.
+Providers are replaceable. The NEXORA contracts remain stable.
+
+## Knowledge boundary
+
+Project-safe knowledge lives in the repository. Private NEXORA brains may be mounted/injected at runtime but must not be committed. Only knowledge relevant to NEXORA QR may affect implementation.
+
+## Isolation and security
+
+- Use a disposable/isolated workspace whenever possible.
+- Never grant production credentials to autonomous agents.
+- Never expose secrets in logs.
+- Keep repository permissions minimal.
+- Do not allow agents to merge or deploy production automatically.
+
+## Human gates
+
+The autonomous system may prepare code and PRs. These remain human-controlled:
+- merge
+- production deployment
+- product/scope changes
+- credential changes
+- cross-project knowledge sharing
