@@ -4,13 +4,13 @@ import TemplateRenderer from './TemplateRenderer';
 
 type Template = { id: number; key: string; name: string };
 
-type Menu = {
+type RenderableMenu = Parameters<typeof TemplateRenderer>[0]['menu'];
+
+type Menu = RenderableMenu & {
     id: number;
-    name: string;
     slug: string;
     is_published: boolean;
     template_id: number | null;
-    categories: unknown[];
 };
 
 export default function MenuBuilder({ menu, template, templates }: { menu: Menu; template: Template | null; templates: Template[] }) {
