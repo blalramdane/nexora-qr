@@ -12,11 +12,11 @@ class Menu extends Model
 {
     use BelongsToRestaurant, HasFactory;
 
-    protected $fillable = ['restaurant_id', 'template_id', 'template_version_id', 'name', 'slug', 'theme', 'is_published'];
+    protected $fillable = ['restaurant_id', 'template_id', 'template_version_id', 'name', 'slug', 'theme', 'is_published', 'published_at'];
 
     protected function casts(): array
     {
-        return ['theme' => 'array', 'is_published' => 'boolean'];
+        return ['theme' => 'array', 'is_published' => 'boolean', 'published_at' => 'datetime'];
     }
 
     public function template(): BelongsTo
