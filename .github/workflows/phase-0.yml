@@ -1,0 +1,48 @@
+name: Nexora QR Phase 0
+
+on:
+  push:
+    branches:
+      - feat/phase-0-foundation
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, sqlite3, pdo_sqlite
+          coverage: none
+
+      - name: Refresh Composer dependencies
+        working-directory: ai-core
+        run: composer update inertiajs/inertia-laravel --with-all-dependencies --no-interaction --prefer-dist
+
+      - name: Run backend tests
+        working-directory: ai-core
+        run: php artisan test
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        working-directory: ai-core
+        run: npm install
+
+      - name: Typecheck
+        working-directory: ai-core
+        run: npx tsc --noEmit
+
+      - name: Build frontend
+        working-directory: ai-core
+        run: npm run build
