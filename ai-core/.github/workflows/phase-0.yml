@@ -1,0 +1,81 @@
+name: Nexora QR Phase 0
+
+on:
+  push:
+    branches:
+      - feat/phase-0-foundation
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-core
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, sqlite3, pdo_sqlite
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer update --with-all-dependencies --no-interaction --prefer-dist
+
+      - name: Run tests
+        run: php artisan test
+
+      - name: Commit refreshed Composer lock
+        run: |
+          if git diff --quiet -- composer.lock; then
+            echo "Composer lock is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.lock
+          git commit -m "build: refresh Composer lock for Phase 0"
+          git push
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-core
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: ai-core/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Commit generated package lock
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "build: add frontend package lock"
+          git push
