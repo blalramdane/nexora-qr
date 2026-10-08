@@ -150,6 +150,35 @@ class MenuController extends Controller
         return to_route('menus.show', $menuModel);
     }
 
+    public function publish(int $menu): RedirectResponse
+    {
+        $this->authorizeMenuManagement();
+
+        $menuModel = Menu::query()
+            ->with(['templateVersion', 'categories.products'])
+            ->findOrFail($menu);
+
+        $errors = $this->publishValidationErrors($menuModel);
+
+        if ($errors !== []) {
+            return to_route('menus.show', $menuModel)->withErrors($errors);
+        }
+
+        $menuModel->update(['is_published' => true]);
+
+        return to_route('menus.show', $menuModel)->with('success', 'Menu published successfully.');
+    }
+
+    public function unpublish(int $menu): RedirectResponse
+    {
+        $this->authorizeMenuManagement();
+
+        $menuModel = Menu::query()->findOrFail($menu);
+        $menuModel->update(['is_published' => false]);
+
+        return to_route('menus.show', $menuModel)->with('success', 'Menu unpublished successfully.');
+    }
+
     public function destroy(int $menu): RedirectResponse
     {
         $this->authorizeMenuManagement();
@@ -158,6 +187,35 @@ class MenuController extends Controller
         $menuModel->delete();
 
         return to_route('menus.index');
+    }
+
+    private function publishValidationErrors(Menu $menu): array
+    {
+        $errors = [];
+
+        if (!$menu->template_id) {
+            $errors['publish'] = 'اختر Template قبل نشر المنيو.';
+        }
+
+        if (!$menu->templateVersion) {
+            $errors['publish'] = 'الـTemplate Version غير متاح. افتح المنيو واحفظها مرة أخرى.';
+        }
+
+        $activeCategories = $menu->categories->where('is_active', true);
+
+        if ($activeCategories->isEmpty()) {
+            $errors['publish'] = 'لا يمكن النشر بدون قسم واحد نشط على الأقل.';
+        }
+
+        $hasAvailableProduct = $activeCategories
+            ->flatMap(fn ($category) => $category->products)
+            ->contains(fn ($product) => (bool) $product->is_available);
+
+        if (!$hasAvailableProduct) {
+            $errors['publish'] = 'لا يمكن النشر بدون منتج واحد متاح على الأقل داخل قسم نشط.';
+        }
+
+        return $errors;
     }
 
     private function authorizeMenuManagement(): void
