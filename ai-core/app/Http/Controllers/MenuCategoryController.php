@@ -123,7 +123,7 @@ class MenuCategoryController extends Controller
             ->where('slug', $slug);
 
         if ($ignoreId !== null) {
-            $query->whereKeyNot($ignoreId);
+            $query->where('id', '<>', $ignoreId);
         }
 
         $suffix = 2;
@@ -134,7 +134,7 @@ class MenuCategoryController extends Controller
                 ->where('slug', $slug);
 
             if ($ignoreId !== null) {
-                $query->whereKeyNot($ignoreId);
+                $query->where('id', '<>', $ignoreId);
             }
         }
 
