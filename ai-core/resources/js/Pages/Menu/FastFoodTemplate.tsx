@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 
 type Variant = { id: number; name: string; price?: string | null; price_delta?: string | null; is_active?: boolean };
 type Modifier = { id: number; name: string; price_delta: string; is_required: boolean; is_active: boolean };
@@ -55,7 +55,7 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
     const [quantity, setQuantity] = useState(1);
 
     const activeCategory = categories.find((category) => category.id === activeCategoryId) ?? categories[0];
-    const allProducts = useMemo(() => categories.flatMap((category) => category.products), [categories]);
+    const allProducts = categories.flatMap((category) => category.products);
     const heroProduct =
         allProducts.find((product) => product.is_featured && product.is_available) ??
         allProducts.find((product) => product.is_available) ??
@@ -78,16 +78,8 @@ export default function FastFoodTemplate({ menu, restaurantName, preview = false
         : Number(selectedVariant?.price_delta ?? 0);
     const selectedPrice = Number(selectedProduct?.price ?? 0) + variantDelta;
 
-    const themeStyle = {
-        '--ff-primary': theme.primary,
-        '--ff-accent': theme.accent,
-        '--ff-background': theme.background,
-        '--ff-foreground': theme.foreground,
-        '--ff-radius': radius,
-    } as React.CSSProperties;
-
     return (
-        <div dir="rtl" style={{ ...themeStyle, backgroundColor: theme.background, color: theme.foreground }} className="min-h-screen overflow-x-hidden bg-[#090807]">
+        <div dir="rtl" style={{ backgroundColor: theme.background, color: theme.foreground }} className="min-h-screen overflow-x-hidden bg-[#090807]">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-[#090807]/92 backdrop-blur-xl">
                 <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
                     <button type="button" aria-label="فتح القائمة" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-white">☰</button>
