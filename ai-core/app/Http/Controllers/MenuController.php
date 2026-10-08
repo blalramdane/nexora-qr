@@ -67,7 +67,7 @@ class MenuController extends Controller
         $this->authorizeMenuManagement();
 
         $menuModel = Menu::query()
-            ->with(['template.activeVersion', 'categories.products.variants'])
+            ->with(['template.activeVersion', 'categories.products.variants', 'categories.products.modifiers'])
             ->findOrFail($menu);
 
         return Inertia::render('Menu/Builder', [
