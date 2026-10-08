@@ -15,6 +15,7 @@ class MenuController extends Controller
 {
     public function index(): Response
     {
+        $this->authorizeMenuManagement();
         return Inertia::render('Menu/Index', [
             'menus' => Menu::query()
                 ->with(['template', 'categories.products.variants'])
@@ -29,6 +30,7 @@ class MenuController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $this->authorizeMenuManagement();
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'template_key' => ['required', 'string', 'exists:templates,key'],
@@ -60,6 +62,7 @@ class MenuController extends Controller
 
     public function show(int $menu): Response
     {
+        $this->authorizeMenuManagement();
         $menuModel = Menu::query()
             ->with(['template.activeVersion', 'categories.products.variants'])
             ->findOrFail($menu);
@@ -67,11 +70,13 @@ class MenuController extends Controller
         return Inertia::render('Menu/Builder', [
             'menu' => $menuModel,
             'template' => $menuModel->template,
+            'templates' => Template::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
     public function update(Request $request, int $menu): RedirectResponse
     {
+        $this->authorizeMenuManagement();
         $menuModel = Menu::query()->findOrFail($menu);
 
         $data = $request->validate([
@@ -97,10 +102,19 @@ class MenuController extends Controller
 
     public function destroy(int $menu): RedirectResponse
     {
+        $this->authorizeMenuManagement();
         $menuModel = Menu::query()->findOrFail($menu);
         $menuModel->delete();
 
         return to_route('menus.index');
+    }
+
+    private function authorizeMenuManagement(): void
+    {
+        $user = request()->user();
+        $restaurant = app(TenantContext::class)->restaurant();
+
+        abort_unless($user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager', 403);
     }
 
     private function uniqueSlug(string $name, ?int $ignoreId = null): string
