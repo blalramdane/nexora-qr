@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 
 class Template extends Model
 {
@@ -21,6 +22,25 @@ class Template extends Model
     public function versions(): HasMany
     {
         return $this->hasMany(TemplateVersion::class);
+    }
+
+    public function createVersion(array $schema, bool $activate = false): TemplateVersion
+    {
+        return DB::transaction(function () use ($schema, $activate): TemplateVersion {
+            $nextVersion = ((int) $this->versions()->max('version')) + 1;
+
+            $version = $this->versions()->create([
+                'version' => $nextVersion,
+                'schema' => $schema,
+                'is_active' => false,
+            ]);
+
+            if ($activate) {
+                $version->activate();
+            }
+
+            return $version->fresh();
+        });
     }
 
     public function activeVersion(): HasOne
