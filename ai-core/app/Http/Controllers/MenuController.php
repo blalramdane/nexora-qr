@@ -19,7 +19,7 @@ class MenuController extends Controller
 
         return Inertia::render('Menu/Index', [
             'menus' => Menu::query()
-                ->with(['template', 'categories.products.variants'])
+                ->with(['template', 'categories.products.variants', 'categories.products.modifiers'])
                 ->latest()
                 ->get(),
             'templates' => Template::query()
