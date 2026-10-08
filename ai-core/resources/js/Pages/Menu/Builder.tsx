@@ -10,6 +10,7 @@ type Menu = {
     slug: string;
     is_published: boolean;
     template_id: number | null;
+    categories: unknown[];
 };
 
 export default function MenuBuilder({ menu, template, templates }: { menu: Menu; template: Template | null; templates: Template[] }) {
