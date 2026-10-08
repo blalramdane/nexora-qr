@@ -9,6 +9,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProductController extends Controller
@@ -21,7 +22,7 @@ class ProductController extends Controller
         $categoryModel = $this->category($menuModel, $category);
 
         $data = $this->validated($request);
-        $categoryModel->products()->create([
+        $product = $categoryModel->products()->create([
             'restaurant_id' => app(TenantContext::class)->id(),
             'name' => $data['name'],
             'slug' => $this->uniqueSlug($categoryModel, $data['name']),
@@ -32,6 +33,16 @@ class ProductController extends Controller
             'is_featured' => $data['is_featured'] ?? false,
             'sort_order' => $data['sort_order'] ?? ((int) $categoryModel->products()->max('sort_order') + 1),
         ]);
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->storeAs(
+                'restaurants/'.app(TenantContext::class)->id().'/products',
+                Str::uuid()->toString().'.'.$request->file('image')->extension(),
+                'public'
+            );
+
+            $product->update(['image_path' => $path]);
+        }
 
         return to_route('menus.show', $menuModel);
     }
@@ -109,6 +120,7 @@ class ProductController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'price' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'image_path' => ['nullable', 'string', 'max:2048'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
             'is_available' => ['sometimes', 'boolean'],
             'is_featured' => ['sometimes', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
