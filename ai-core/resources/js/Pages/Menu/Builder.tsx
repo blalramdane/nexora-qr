@@ -10,7 +10,7 @@ type Category = {
     description?: string | null;
     sort_order: number;
     is_active: boolean;
-    products: Array<{ id: number; name: string; description?: string | null; price: string; image_path?: string | null; is_available: boolean; is_featured: boolean; variants?: Array<{ id: number; name: string; price?: string | null; price_delta?: string }> }>;
+    products: Array<{ id: number; name: string; description?: string | null; price: string; image_path?: string | null; is_available: boolean; is_featured: boolean; variants?: Array<{ id: number; name: string; price?: string | null; price_delta?: string; sort_order: number; is_active: boolean }> }>;
 };
 type RenderableMenu = Parameters<typeof TemplateRenderer>[0]['menu'];
 type Menu = Omit<RenderableMenu, 'categories'> & {
@@ -38,6 +38,16 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
     const [editingProductId, setEditingProductId] = useState<number | null>(null);
     const [editingProductName, setEditingProductName] = useState('');
     const [editingProductPrice, setEditingProductPrice] = useState('');
+    const [variantProductId, setVariantProductId] = useState<number | null>(null);
+    const [variantName, setVariantName] = useState('');
+    const [variantPricingMode, setVariantPricingMode] = useState<'fixed' | 'delta'>('fixed');
+    const [variantPrice, setVariantPrice] = useState('');
+    const [variantDelta, setVariantDelta] = useState('');
+    const [editingVariantId, setEditingVariantId] = useState<number | null>(null);
+    const [editingVariantName, setEditingVariantName] = useState('');
+    const [editingVariantPricingMode, setEditingVariantPricingMode] = useState<'fixed' | 'delta'>('fixed');
+    const [editingVariantPrice, setEditingVariantPrice] = useState('');
+    const [editingVariantDelta, setEditingVariantDelta] = useState('');
 
     const save = (event: FormEvent) => {
         event.preventDefault();
@@ -164,6 +174,73 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
         const ids = category.products.map(p => p.id);
         [ids[index], ids[nextIndex]] = [ids[nextIndex], ids[index]];
         router.post('/menus/' + menu.id + '/categories/' + category.id + '/products/reorder', { product_ids: ids });
+    };
+
+    const addVariant = (event: FormEvent, categoryId: number, productId: number) => {
+        event.preventDefault();
+        if (!variantName.trim()) return;
+        if (variantPricingMode === 'fixed' && !variantPrice) return;
+        if (variantPricingMode === 'delta' && !variantDelta) return;
+        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants', {
+            name: variantName,
+            pricing_mode: variantPricingMode,
+            price: variantPricingMode === 'fixed' ? variantPrice : null,
+            price_delta: variantPricingMode === 'delta' ? variantDelta : null,
+            is_active: true,
+        }, { onSuccess: () => {
+            setVariantName(''); setVariantPrice(''); setVariantDelta(''); setVariantPricingMode('fixed'); setVariantProductId(null);
+        }});
+    };
+
+    const startEditingVariant = (variant: NonNullable<Category['products'][number]['variants']>[number]) => {
+        setEditingVariantId(variant.id);
+        setEditingVariantName(variant.name);
+        if (variant.price !== null && variant.price !== undefined) {
+            setEditingVariantPricingMode('fixed'); setEditingVariantPrice(variant.price); setEditingVariantDelta('');
+        } else {
+            setEditingVariantPricingMode('delta'); setEditingVariantPrice(''); setEditingVariantDelta(variant.price_delta ?? '0');
+        }
+    };
+
+    const saveVariant = (event: FormEvent, categoryId: number, productId: number, variantId: number) => {
+        event.preventDefault();
+        if (!editingVariantName.trim()) return;
+        if (editingVariantPricingMode === 'fixed' && !editingVariantPrice) return;
+        if (editingVariantPricingMode === 'delta' && !editingVariantDelta) return;
+        const product = menu.categories.find(c => c.id === categoryId)?.products.find(p => p.id === productId);
+        const variant = product?.variants?.find(v => v.id === variantId);
+        if (!variant) return;
+        router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/' + variantId, {
+            name: editingVariantName,
+            pricing_mode: editingVariantPricingMode,
+            price: editingVariantPricingMode === 'fixed' ? editingVariantPrice : null,
+            price_delta: editingVariantPricingMode === 'delta' ? editingVariantDelta : null,
+            is_active: variant.is_active,
+            sort_order: variant.sort_order,
+        }, { onSuccess: () => setEditingVariantId(null) });
+    };
+
+    const toggleVariant = (categoryId: number, productId: number, variant: NonNullable<Category['products'][number]['variants']>[number]) => {
+        router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/' + variant.id, {
+            name: variant.name,
+            pricing_mode: variant.price !== null && variant.price !== undefined ? 'fixed' : 'delta',
+            price: variant.price ?? null,
+            price_delta: variant.price !== null && variant.price !== undefined ? null : variant.price_delta ?? '0',
+            is_active: !variant.is_active,
+            sort_order: variant.sort_order,
+        });
+    };
+
+    const moveVariant = (categoryId: number, productId: number, variants: NonNullable<Category['products'][number]['variants']>, index: number, direction: -1 | 1) => {
+        const nextIndex = index + direction;
+        if (nextIndex < 0 || nextIndex >= variants.length) return;
+        const ids = variants.map(v => v.id);
+        [ids[index], ids[nextIndex]] = [ids[nextIndex], ids[index]];
+        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/reorder', { variant_ids: ids });
+    };
+
+    const deleteVariant = (categoryId: number, productId: number, variantId: number) => {
+        if (window.confirm('حذف الـVariant؟')) router.delete('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/' + variantId);
     };
 
     const moveCategory = (index: number, direction: -1 | 1) => {
@@ -297,6 +374,54 @@ export default function MenuBuilder({ menu, template, templates }: { menu: Menu;
                                                         <button type="button" onClick={() => deleteProduct(category, product)} className="rounded border border-red-200 px-2 py-1 text-xs text-red-600">حذف</button>
                                                     </div>
                                                 )}
+                                            </div>
+                                            <div className="mt-2 rounded-xl border border-slate-200 bg-white p-2">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-[11px] font-black text-slate-500">VARIANTS · {product.variants?.length ?? 0}</span>
+                                                    <button type="button" onClick={() => setVariantProductId(variantProductId === product.id ? null : product.id)} className="rounded-lg border px-2 py-1 text-[11px] font-bold">{variantProductId === product.id ? 'إغلاق' : '+ Variant'}</button>
+                                                </div>
+                                                {variantProductId === product.id && (
+                                                    <form onSubmit={(e) => addVariant(e, category.id, product.id)} className="mt-2 space-y-2">
+                                                        <input value={variantName} onChange={(e) => setVariantName(e.target.value)} placeholder="مثال: Large / Extra Cheese" maxLength={120} required className="w-full rounded-lg border px-2 py-1.5 text-xs" />
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <select value={variantPricingMode} onChange={(e) => setVariantPricingMode(e.target.value as 'fixed' | 'delta')} className="rounded-lg border px-2 py-1.5 text-xs">
+                                                                <option value="fixed">سعر ثابت</option><option value="delta">فرق عن السعر الأساسي</option>
+                                                            </select>
+                                                            {variantPricingMode === 'fixed'
+                                                                ? <input value={variantPrice} onChange={(e) => setVariantPrice(e.target.value)} type="number" min="0" step="0.01" placeholder="السعر" required className="rounded-lg border px-2 py-1.5 text-xs" />
+                                                                : <input value={variantDelta} onChange={(e) => setVariantDelta(e.target.value)} type="number" step="0.01" placeholder="+ / - من السعر" required className="rounded-lg border px-2 py-1.5 text-xs" />}
+                                                        </div>
+                                                        <button type="submit" className="w-full rounded-lg bg-amber-500 px-2 py-1.5 text-xs font-black text-white">إضافة Variant</button>
+                                                    </form>
+                                                )}
+                                                <div className="mt-2 space-y-1.5">
+                                                    {(product.variants ?? []).map((variant, variantIndex, variants) => (
+                                                        <div key={variant.id} className={'rounded-lg p-2 ' + (variant.is_active ? 'bg-slate-50' : 'bg-slate-100 opacity-60')}>
+                                                            {editingVariantId === variant.id ? (
+                                                                <form onSubmit={(e) => saveVariant(e, category.id, product.id, variant.id)} className="space-y-2">
+                                                                    <input value={editingVariantName} onChange={(e) => setEditingVariantName(e.target.value)} required className="w-full rounded border px-2 py-1 text-xs" />
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        <select value={editingVariantPricingMode} onChange={(e) => setEditingVariantPricingMode(e.target.value as 'fixed' | 'delta')} className="rounded border px-2 py-1 text-xs"><option value="fixed">سعر ثابت</option><option value="delta">فرق</option></select>
+                                                                        {editingVariantPricingMode === 'fixed'
+                                                                            ? <input value={editingVariantPrice} onChange={(e) => setEditingVariantPrice(e.target.value)} type="number" min="0" step="0.01" required className="rounded border px-2 py-1 text-xs" />
+                                                                            : <input value={editingVariantDelta} onChange={(e) => setEditingVariantDelta(e.target.value)} type="number" step="0.01" required className="rounded border px-2 py-1 text-xs" />}
+                                                                    </div>
+                                                                    <div className="flex gap-1.5"><button type="submit" className="flex-1 rounded bg-slate-900 px-2 py-1 text-[11px] font-bold text-white">حفظ</button><button type="button" onClick={() => setEditingVariantId(null)} className="rounded border px-2 py-1 text-[11px] font-bold">إلغاء</button></div>
+                                                                </form>
+                                                            ) : (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-black">{variant.name}</p><p className="text-[10px] text-slate-500">{variant.price !== null && variant.price !== undefined ? Number(variant.price).toFixed(2) + ' ج.م ثابت' : (Number(variant.price_delta) >= 0 ? '+' : '') + Number(variant.price_delta).toFixed(2) + ' ج.م'}</p></div>
+                                                                    <button type="button" disabled={variantIndex === 0} onClick={() => moveVariant(category.id, product.id, variants, variantIndex, -1)} className="rounded border px-1.5 text-[10px] disabled:opacity-30">↑</button>
+                                                                    <button type="button" disabled={variantIndex === variants.length - 1} onClick={() => moveVariant(category.id, product.id, variants, variantIndex, 1)} className="rounded border px-1.5 text-[10px] disabled:opacity-30">↓</button>
+                                                                    <button type="button" onClick={() => startEditingVariant(variant)} className="rounded border px-1.5 py-1 text-[10px]">تعديل</button>
+                                                                    <button type="button" onClick={() => toggleVariant(category.id, product.id, variant)} className="rounded border px-1.5 py-1 text-[10px]">{variant.is_active ? 'إخفاء' : 'تفعيل'}</button>
+                                                                    <button type="button" onClick={() => deleteVariant(category.id, product.id, variant.id)} className="rounded border border-red-200 px-1.5 py-1 text-[10px] text-red-600">حذف</button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                    {(product.variants ?? []).length === 0 && <p className="py-1 text-center text-[10px] text-slate-400">مفيش Variants.</p>}
+                                                </div>
                                             </div>
                                         ))}
                                         {category.products.length === 0 && <p className="py-2 text-center text-xs text-slate-400">مفيش منتجات في القسم.</p>}
