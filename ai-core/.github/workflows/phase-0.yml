@@ -10,12 +10,8 @@ permissions:
   contents: write
 
 jobs:
-  php:
+  verify:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ai-core
-
     steps:
       - uses: actions/checkout@v4
 
@@ -26,56 +22,39 @@ jobs:
           extensions: mbstring, sqlite3, pdo_sqlite
           coverage: none
 
-      - name: Install Composer dependencies
-        run: composer update --with-all-dependencies --no-interaction --prefer-dist
+      - name: Refresh Composer lock
+        working-directory: ai-core
+        run: composer update inertiajs/inertia-laravel --with-all-dependencies --no-interaction --prefer-dist
 
-      - name: Run tests
+      - name: Run backend tests
+        working-directory: ai-core
         run: php artisan test
 
-      - name: Commit refreshed Composer lock
-        run: |
-          if git diff --quiet -- composer.lock; then
-            echo "Composer lock is already current."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add composer.lock
-          git commit -m "build: refresh Composer lock for Phase 0"
-          git push
-
-  frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ai-core
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
-          cache-dependency-path: ai-core/package-lock.json
 
       - name: Install frontend dependencies
+        working-directory: ai-core
         run: npm install
 
       - name: Typecheck
+        working-directory: ai-core
         run: npx tsc --noEmit
 
       - name: Build frontend
+        working-directory: ai-core
         run: npm run build
 
-      - name: Commit generated package lock
+      - name: Commit refreshed dependency locks
         run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "package-lock is already current."
+          if git diff --quiet -- ai-core/composer.lock ai-core/package-lock.json; then
+            echo "Dependency locks are already current."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "build: add frontend package lock"
+          git add ai-core/composer.lock ai-core/package-lock.json
+          git commit -m "build: refresh Phase 0 dependency locks"
           git push
