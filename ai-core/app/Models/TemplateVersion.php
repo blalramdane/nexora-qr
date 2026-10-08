@@ -23,7 +23,7 @@ class TemplateVersion extends Model
         return DB::transaction(function (): self {
             static::query()
                 ->where('template_id', $this->template_id)
-                ->whereKeyNot($this->id)
+                ->where('id', '<>', $this->id)
                 ->update(['is_active' => false]);
 
             $this->forceFill(['is_active' => true])->save();
