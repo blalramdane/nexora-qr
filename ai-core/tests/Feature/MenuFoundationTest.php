@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Restaurant;
 use App\Models\Template;
+use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -83,5 +84,93 @@ class MenuFoundationTest extends TestCase
         $this->assertSame('Classic', $loaded->name);
         $this->assertCount(1, $loaded->variants);
         $this->assertSame('Double', $loaded->variants->first()->name);
+    }
+
+    public function test_owner_can_update_and_delete_a_menu(): void
+    {
+        $restaurant = Restaurant::create(['name' => 'A', 'slug' => 'a']);
+        $user = User::factory()->create();
+        $restaurant->users()->attach($user->id, ['role' => 'owner']);
+
+        $template = Template::create(['key' => 'fast-food', 'name' => 'Fast Food']);
+        app(TenantContext::class)->set($restaurant);
+
+        $menu = Menu::create([
+            'restaurant_id' => $restaurant->id,
+            'template_id' => $template->id,
+            'name' => 'Old Menu',
+            'slug' => 'old-menu',
+        ]);
+
+        $this->actingAs($user)
+            ->put("/menus/{$menu->id}", [
+                'name' => 'New Menu',
+                'template_key' => 'fast-food',
+            ])
+            ->assertRedirect("/menus/{$menu->id}");
+
+        $this->assertDatabaseHas('menus', [
+            'id' => $menu->id,
+            'name' => 'New Menu',
+            'slug' => 'new-menu',
+        ]);
+
+        $this->actingAs($user)
+            ->delete("/menus/{$menu->id}")
+            ->assertRedirect('/menus');
+
+        $this->assertDatabaseMissing('menus', ['id' => $menu->id]);
+    }
+
+    public function test_manager_can_manage_menus_but_regular_member_cannot(): void
+    {
+        $restaurant = Restaurant::create(['name' => 'A', 'slug' => 'a']);
+        $manager = User::factory()->create();
+        $member = User::factory()->create();
+        $restaurant->users()->attach($manager->id, ['role' => 'manager']);
+        $restaurant->users()->attach($member->id, ['role' => 'staff']);
+
+        $template = Template::create(['key' => 'cafe', 'name' => 'Cafe']);
+        app(TenantContext::class)->set($restaurant);
+
+        $this->actingAs($manager)
+            ->post('/menus', ['name' => 'Manager Menu', 'template_key' => 'cafe'])
+            ->assertRedirect();
+
+        $this->actingAs($member)
+            ->get('/menus')
+            ->assertForbidden();
+    }
+
+    public function test_menu_update_cannot_cross_tenant_boundary(): void
+    {
+        $restaurantA = Restaurant::create(['name' => 'A', 'slug' => 'a']);
+        $restaurantB = Restaurant::create(['name' => 'B', 'slug' => 'b']);
+        $userA = User::factory()->create();
+        $restaurantA->users()->attach($userA->id, ['role' => 'owner']);
+
+        $template = Template::create(['key' => 'cafe', 'name' => 'Cafe']);
+
+        app(TenantContext::class)->set($restaurantB);
+        $menuB = Menu::create([
+            'restaurant_id' => $restaurantB->id,
+            'template_id' => $template->id,
+            'name' => 'B Menu',
+            'slug' => 'b-menu',
+        ]);
+
+        app(TenantContext::class)->set($restaurantA);
+
+        $this->actingAs($userA)
+            ->put("/menus/{$menuB->id}", [
+                'name' => 'Hijacked',
+                'template_key' => 'cafe',
+            ])
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('menus', [
+            'id' => $menuB->id,
+            'name' => 'B Menu',
+        ]);
     }
 }
