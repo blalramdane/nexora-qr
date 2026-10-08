@@ -72,7 +72,7 @@
     {
       "id": "07",
       "name": "Drag & Drop Builder",
-      "status": "pending",
+      "status": "verified",
       "verification": [
         "backend",
         "typecheck",
