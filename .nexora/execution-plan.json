@@ -83,7 +83,7 @@
     {
       "id": "08",
       "name": "Theme Editor",
-      "status": "pending",
+      "status": "verified",
       "verification": [
         "backend",
         "typecheck",
