@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MenuCategoryController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductVariantController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -34,6 +35,11 @@ Route::middleware('auth')->group(function () {
         Route::put('/menus/{menu}/categories/{category}/products/{product}', [ProductController::class, 'update'])->name('menus.products.update');
         Route::delete('/menus/{menu}/categories/{category}/products/{product}', [ProductController::class, 'destroy'])->name('menus.products.destroy');
         Route::post('/menus/{menu}/categories/{category}/products/reorder', [ProductController::class, 'reorder'])->name('menus.products.reorder');
+
+        Route::post('/menus/{menu}/categories/{category}/products/{product}/variants', [ProductVariantController::class, 'store'])->name('menus.product-variants.store');
+        Route::put('/menus/{menu}/categories/{category}/products/{product}/variants/{variant}', [ProductVariantController::class, 'update'])->name('menus.product-variants.update');
+        Route::delete('/menus/{menu}/categories/{category}/products/{product}/variants/{variant}', [ProductVariantController::class, 'destroy'])->name('menus.product-variants.destroy');
+        Route::post('/menus/{menu}/categories/{category}/products/{product}/variants/reorder', [ProductVariantController::class, 'reorder'])->name('menus.product-variants.reorder');
     });
 });
 
