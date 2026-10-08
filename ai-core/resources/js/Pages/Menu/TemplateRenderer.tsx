@@ -10,13 +10,14 @@ type Menu = { name: string; categories: Category[]; template?: { key: string; na
 type Props = { menu: Menu; restaurantName?: string; preview?: boolean };
 
 const money = (value: string) => Number(value).toFixed(0) + ' ج.م';
+const imageUrl = (path?: string | null) => path && (path.startsWith('http') || path.startsWith('/')) ? path : path ? '/storage/' + path : null;
 
 function ProductCard({ product, style }: { product: Product; style: 'compact' | 'editorial' | 'featured' }) {
     const [expanded, setExpanded] = useState(false);
     const shell = style === 'featured' ? 'rounded-3xl border-white/10 bg-white/5 text-white' : style === 'editorial' ? 'rounded-[2rem] border-black/10 bg-white' : 'rounded-2xl border-black/10 bg-white';
     return <article className={'group overflow-hidden border transition ' + shell + (product.is_available ? '' : ' opacity-50')}>
         <div className="aspect-[1.35] overflow-hidden bg-black/5">
-            {product.image_path ? <img src={product.image_path} alt={product.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-black/5 to-black/10 text-4xl">🍽️</div>}
+            {imageUrl(product.image_path) ? <img src={imageUrl(product.image_path) as string} alt={product.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-black/5 to-black/10 text-4xl">🍽️</div>}
         </div>
         <div className="p-4">
             <div className="flex items-start justify-between gap-3">
