@@ -16,18 +16,27 @@ class MenuPublishController extends Controller
             ->with(['templateVersion', 'categories.products'])
             ->findOrFail($menu);
 
-        abort_unless($menuModel->template_id && $menuModel->template_version_id, 422, 'المنيو لازم يكون مربوط بـ Template Version.');
-        abort_unless($menuModel->templateVersion?->is_active, 422, 'نسخة الـTemplate الحالية غير مفعّلة.');
+        if (!$menuModel->template_id || !$menuModel->template_version_id) {
+            return back()->withErrors(['publish' => 'المنيو لازم يكون مربوط بـ Template Version.']);
+        }
+
+        if (!$menuModel->templateVersion?->is_active) {
+            return back()->withErrors(['publish' => 'نسخة الـTemplate الحالية غير مفعّلة.']);
+        }
 
         $hasActiveCategory = $menuModel->categories->contains(fn ($category) => $category->is_active);
-        abort_unless($hasActiveCategory, 422, 'لازم يكون فيه قسم واحد على الأقل مفعّل.');
+        if (!$hasActiveCategory) {
+            return back()->withErrors(['publish' => 'لازم يكون فيه قسم واحد على الأقل مفعّل.']);
+        }
 
         $hasAvailableProduct = $menuModel->categories
             ->where('is_active', true)
             ->flatMap(fn ($category) => $category->products)
             ->contains(fn ($product) => $product->is_available);
 
-        abort_unless($hasAvailableProduct, 422, 'لازم يكون فيه منتج واحد متاح على الأقل.');
+        if (!$hasAvailableProduct) {
+            return back()->withErrors(['publish' => 'لازم يكون فيه منتج واحد متاح على الأقل.']);
+        }
 
         $menuModel->update(['is_published' => true]);
 
