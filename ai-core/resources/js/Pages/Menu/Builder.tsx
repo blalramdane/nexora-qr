@@ -12,7 +12,7 @@ type Menu = {
     template_id: number | null;
 };
 
-export default function MenuBuilder({ menu, template }: { menu: Menu; template: Template | null }) {
+export default function MenuBuilder({ menu, template, templates }: { menu: Menu; template: Template | null; templates: Template[] }) {
     const [name, setName] = useState(menu.name);
     const [templateKey, setTemplateKey] = useState(template?.key ?? '');
 
@@ -51,7 +51,7 @@ export default function MenuBuilder({ menu, template }: { menu: Menu; template: 
                         <label className="block">
                             <span className="mb-2 block text-sm font-bold">Template</span>
                             <select value={templateKey} onChange={(e) => setTemplateKey(e.target.value)} required className="w-full rounded-xl border border-slate-200 px-3 py-2">
-                                <option value={template?.key}>{template?.name ?? 'اختر Template'}</option>
+                                {templates.map((item) => <option key={item.id} value={item.key}>{item.name}</option>)}
                             </select>
                         </label>
                         <button type="submit" className="w-full rounded-xl bg-slate-900 px-4 py-2.5 font-bold text-white">حفظ التعديلات</button>
