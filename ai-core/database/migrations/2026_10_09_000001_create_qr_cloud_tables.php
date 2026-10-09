@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('slug', 100)->unique();
             $table->string('code', 32)->unique();
             $table->string('currency', 8)->default('EGP');
-            $table->unsignedInteger('menu_version')->default(1);
+            $table->unsignedInteger('menu_version')->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamps();
