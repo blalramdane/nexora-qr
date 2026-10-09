@@ -96,7 +96,7 @@ The token is printed once. Store it only in the branch-agent secret store/enviro
 - No credentials or customer data were sent to any cloud service.
 - The branch agent client/worker is being implemented on the separate Al Jazeera POS feature branch; it is not yet deployed in the installed cashier build.
 - Public QR order submission currently accepts takeaway only. Dine-in/table and delivery/address flows stay disabled until their POS mappings and tests are complete.
-- The owner dashboard authentication/reporting UI is not implemented yet.
+- The public menu and QR operations dashboard pages now exist on this feature branch, but they have not been deployed or verified against a live cloud host.
 - The menu options field is currently a snapshot payload; strict option/modifier validation against an allow-list must be added before enabling options in production.
 - The QR inbox-to-native-POS conversion must call existing POS domain services and be tested against open-shift, payment, kitchen, inventory, and print workflows.
 - Branch creation/token issuance are CLI-only; secure owner administration UI/API is future work.
@@ -125,4 +125,4 @@ Create a branch manager by supplying an active branch slug:
 php artisan qr:user:create "Branch Manager" "manager@example.com" branch_manager --branch=aljazeera-branch-1
 ~~~
 
-The password prompt is hidden; passwords must be at least 12 characters. Do not pass passwords as command-line arguments. The UI for owner login and dashboard is still outstanding.
+The password prompt is hidden; passwords must be at least 12 characters. Do not pass passwords as command-line arguments. The owner login/dashboard UI is present in this feature branch; production deployment and browser-level verification remain outstanding.
