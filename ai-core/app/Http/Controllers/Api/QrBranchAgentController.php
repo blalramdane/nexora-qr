@@ -134,13 +134,12 @@ class QrBranchAgentController extends Controller
         $branch = $request->attributes->get('qr_branch');
         $data = $request->validate([
             'delivery_lease_token' => ['required', 'uuid'],
-            'status' => ['required', 'in:imported,rejected'],
-            'local_order_id' => ['nullable', 'string', 'max:100'],
-            'reason' => ['nullable', 'string', 'max:1000'],
+            'status' => ['required', 'in:received'],
+            'local_inbox_id' => ['required', 'string', 'max:100'],
         ]);
 
         $order = $branch->orders()->whereKey($orderId)->firstOrFail();
-        if ($order->status === $data['status']) {
+        if ($order->status === 'received' && (string) $order->local_inbox_id === (string) $data['local_inbox_id']) {
             return response()->json(['data' => ['id' => $order->id, 'status' => $order->status]]);
         }
 
@@ -148,8 +147,46 @@ class QrBranchAgentController extends Controller
             return response()->json(['message' => 'Delivery lease is stale or invalid.'], 409);
         }
 
+        $order->forceFill([
+            'status' => 'received',
+            'local_inbox_id' => $data['local_inbox_id'],
+            'received_at' => now(),
+            'delivery_lease_token' => null,
+            'delivery_lease_expires_at' => null,
+        ])->save();
+
+        return response()->json(['data' => ['id' => $order->id, 'status' => $order->status]]);
+    }
+
+    public function resolve(Request $request, int $orderId): JsonResponse
+    {
+        /** @var QrBranch $branch */
+        $branch = $request->attributes->get('qr_branch');
+        $data = $request->validate([
+            'status' => ['required', 'in:imported,rejected'],
+            'local_order_id' => ['nullable', 'string', 'max:100'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
         if ($data['status'] === 'imported' && empty($data['local_order_id'])) {
             return response()->json(['message' => 'local_order_id is required for imported orders.'], 422);
+        }
+        if ($data['status'] === 'rejected' && empty($data['reason'])) {
+            return response()->json(['message' => 'reason is required for rejected orders.'], 422);
+        }
+
+        $order = $branch->orders()->whereKey($orderId)->firstOrFail();
+        if ($order->status === $data['status']) {
+            $sameLocalOrder = $data['status'] !== 'imported'
+                || (string) $order->local_order_id === (string) $data['local_order_id'];
+            if ($sameLocalOrder) {
+                return response()->json(['data' => ['id' => $order->id, 'status' => $order->status]]);
+            }
+            return response()->json(['message' => 'Order resolution conflicts with the existing local order.'], 409);
+        }
+
+        if ($order->status !== 'received') {
+            return response()->json(['message' => 'Order must be durably received by the branch before resolution.'], 409);
         }
 
         $order->forceFill([
@@ -157,10 +194,9 @@ class QrBranchAgentController extends Controller
             'local_order_id' => $data['local_order_id'] ?? null,
             'resolution_note' => $data['reason'] ?? null,
             'acknowledged_at' => now(),
-            'delivery_lease_token' => null,
-            'delivery_lease_expires_at' => null,
         ])->save();
 
         return response()->json(['data' => ['id' => $order->id, 'status' => $order->status]]);
     }
+
 }
