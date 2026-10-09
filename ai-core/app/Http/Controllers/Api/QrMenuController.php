@@ -33,8 +33,8 @@ class QrMenuController extends Controller
             'menu_version' => ['required', 'integer', 'min:1'],
             'fulfillment_type' => ['required', 'in:takeaway,dine_in,delivery'],
             'customer_name' => ['nullable', 'string', 'max:120'],
-            'customer_phone' => ['nullable', 'string', 'max:40'],
-            'customer_address' => ['nullable', 'string', 'max:1000'],
+            'customer_phone' => ['required_if:fulfillment_type,delivery', 'nullable', 'string', 'max:40'],
+            'customer_address' => ['required_if:fulfillment_type,delivery', 'nullable', 'string', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:80'],
             'items.*.source_product_id' => ['required', 'string', 'max:100', 'distinct'],
@@ -42,8 +42,36 @@ class QrMenuController extends Controller
             'items.*.options' => ['sometimes', 'array', 'size:0'],
         ]);
 
+        // Hash the validated customer intent, not current product prices. A retry must
+        // receive the original result even if the menu changed after the first submit.
+        $intentItems = array_map(fn (array $item) => [
+            'source_product_id' => $item['source_product_id'],
+            'quantity' => (int) $item['quantity'],
+            'options' => [],
+        ], $data['items']);
+        $normalized = [
+            'source_order_uuid' => $data['source_order_uuid'],
+            'menu_version' => (int) $data['menu_version'],
+            'fulfillment_type' => $data['fulfillment_type'],
+            'customer_name' => $data['customer_name'] ?? null,
+            'customer_phone' => $data['customer_phone'] ?? null,
+            'customer_address' => $data['customer_address'] ?? null,
+            'notes' => $data['notes'] ?? null,
+            'items' => $intentItems,
+        ];
+        $hash = hash('sha256', json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+
+        $existing = $branch->orders()->where('source_order_uuid', $data['source_order_uuid'])->first();
+        if ($existing) {
+            return $this->idempotentResponse($existing, $hash);
+        }
+
         if ((int) $data['menu_version'] !== (int) $branch->menu_version) {
-            return response()->json(['message' => 'Refresh the menu before submitting.', 'code' => 'MENU_VERSION_STALE', 'menu_version' => $branch->menu_version], 409);
+            return response()->json([
+                'message' => 'Refresh the menu before submitting.',
+                'code' => 'MENU_VERSION_STALE',
+                'menu_version' => $branch->menu_version,
+            ], 409);
         }
 
         $ids = collect($data['items'])->pluck('source_product_id')->unique()->values();
@@ -63,29 +91,31 @@ class QrMenuController extends Controller
             }
             $line = $unit * $quantity;
             $subtotal += $line;
-            $snapshot[] = ['source_product_id' => $product->source_product_id, 'name' => $product->name, 'quantity' => $quantity, 'unit_price_minor' => $unit, 'line_total_minor' => $line, 'options' => $item['options'] ?? []];
-        }
-
-        $normalized = [
-            'source_order_uuid' => $data['source_order_uuid'], 'menu_version' => (int) $data['menu_version'],
-            'fulfillment_type' => $data['fulfillment_type'], 'customer_name' => $data['customer_name'] ?? null,
-            'customer_phone' => $data['customer_phone'] ?? null, 'customer_address' => $data['customer_address'] ?? null,
-            'notes' => $data['notes'] ?? null, 'items' => $snapshot,
-        ];
-        $hash = hash('sha256', json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
-        $existing = $branch->orders()->where('source_order_uuid', $data['source_order_uuid'])->first();
-        if ($existing) {
-            return $this->idempotentResponse($existing, $hash);
+            $snapshot[] = [
+                'source_product_id' => $product->source_product_id,
+                'name' => $product->name,
+                'quantity' => $quantity,
+                'unit_price_minor' => $unit,
+                'line_total_minor' => $line,
+                'options' => [],
+            ];
         }
 
         try {
             $order = DB::transaction(fn () => $branch->orders()->create([
-                'source_order_uuid' => $data['source_order_uuid'], 'status' => 'pending_delivery',
-                'customer_name' => $data['customer_name'] ?? null, 'customer_phone' => $data['customer_phone'] ?? null,
-                'customer_address' => $data['customer_address'] ?? null, 'notes' => $data['notes'] ?? null,
-                'fulfillment_type' => $data['fulfillment_type'], 'subtotal_minor' => $subtotal,
-                'currency' => $branch->currency, 'menu_version' => $branch->menu_version, 'items_snapshot' => $snapshot,
-                'payload_hash' => $hash, 'submitted_at' => now(),
+                'source_order_uuid' => $data['source_order_uuid'],
+                'status' => 'pending_delivery',
+                'customer_name' => $data['customer_name'] ?? null,
+                'customer_phone' => $data['customer_phone'] ?? null,
+                'customer_address' => $data['customer_address'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'fulfillment_type' => $data['fulfillment_type'],
+                'subtotal_minor' => $subtotal,
+                'currency' => $branch->currency,
+                'menu_version' => $branch->menu_version,
+                'items_snapshot' => $snapshot,
+                'payload_hash' => $hash,
+                'submitted_at' => now(),
             ]));
         } catch (QueryException $exception) {
             $existing = $branch->orders()->where('source_order_uuid', $data['source_order_uuid'])->first();
@@ -108,6 +138,13 @@ class QrMenuController extends Controller
 
     private function publicOrder(QrOrder $order): array
     {
-        return ['order_id' => $order->id, 'source_order_uuid' => $order->source_order_uuid, 'status' => $order->status, 'subtotal_minor' => $order->subtotal_minor, 'currency' => $order->currency, 'submitted_at' => $order->submitted_at?->toIso8601String()];
+        return [
+            'order_id' => $order->id,
+            'source_order_uuid' => $order->source_order_uuid,
+            'status' => $order->status,
+            'subtotal_minor' => $order->subtotal_minor,
+            'currency' => $order->currency,
+            'submitted_at' => $order->submitted_at?->toIso8601String(),
+        ];
     }
 }
