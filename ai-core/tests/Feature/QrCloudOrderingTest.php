@@ -152,4 +152,45 @@ class QrCloudOrderingTest extends TestCase
             'local_order_id' => 'local-100',
         ])->assertOk()->assertJsonPath('data.status', 'imported');
     }
+    public function test_order_rejects_unvalidated_option_selections(): void
+    {
+        $branch = $this->branch();
+        $this->publishItem($branch);
+        $this->postJson('/api/qr/v1/menus/branch-a/orders', [
+            'source_order_uuid' => (string) Str::uuid(),
+            'menu_version' => 1,
+            'fulfillment_type' => 'takeaway',
+            'items' => [['source_product_id' => 'sku-1', 'quantity' => 1, 'options' => ['extra-cheese']]],
+        ])->assertStatus(422);
+
+        $this->assertDatabaseCount('qr_orders', 0);
+    }
+
+    public function test_branch_agent_publishes_first_menu_version(): void
+    {
+        $branch = QrBranch::query()->create([
+            'name' => 'Fresh Branch',
+            'slug' => 'fresh-branch',
+            'code' => 'FRESH1',
+        ]);
+        $token = Str::random(64);
+        $branch->agents()->create(['name' => 'Primary POS', 'token_hash' => hash('sha256', $token)]);
+
+        $this->withToken($token)->putJson('/api/qr/v1/agent/menu', [
+            'menu_version' => 1,
+            'items' => [[
+                'source_product_id' => 'pos-product-1',
+                'name' => 'Meal',
+                'price_minor' => 12500,
+                'is_available' => true,
+            ]],
+        ])->assertOk()->assertJsonPath('menu_version', 1);
+
+        $this->assertDatabaseHas('qr_menu_items', [
+            'branch_id' => $branch->id,
+            'source_product_id' => 'pos-product-1',
+            'price_minor' => 12500,
+        ]);
+    }
+
 }
