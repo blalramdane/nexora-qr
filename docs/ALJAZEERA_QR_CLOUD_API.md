@@ -95,6 +95,7 @@ The token is printed once. Store it only in the branch-agent secret store/enviro
 - No live production deployment or migration has been performed.
 - No credentials or customer data were sent to any cloud service.
 - The branch agent client/worker is being implemented on the separate Al Jazeera POS feature branch; it is not yet deployed in the installed cashier build.
+- Public QR order submission currently accepts takeaway only. Dine-in/table and delivery/address flows stay disabled until their POS mappings and tests are complete.
 - The owner dashboard authentication/reporting UI is not implemented yet.
 - The menu options field is currently a snapshot payload; strict option/modifier validation against an allow-list must be added before enabling options in production.
 - The QR inbox-to-native-POS conversion must call existing POS domain services and be tested against open-shift, payment, kitchen, inventory, and print workflows.
