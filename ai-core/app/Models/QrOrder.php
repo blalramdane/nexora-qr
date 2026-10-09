@@ -13,8 +13,8 @@ class QrOrder extends Model
         'branch_id', 'source_order_uuid', 'status', 'customer_name', 'customer_phone',
         'customer_address', 'notes', 'fulfillment_type', 'subtotal_minor', 'currency',
         'menu_version', 'items_snapshot', 'payload_hash', 'delivery_lease_token',
-        'delivery_lease_expires_at', 'delivery_attempts', 'local_order_id',
-        'resolution_note', 'submitted_at', 'acknowledged_at',
+        'delivery_lease_expires_at', 'delivery_attempts', 'local_inbox_id', 'local_order_id',
+        'resolution_note', 'received_at', 'submitted_at', 'acknowledged_at',
     ];
 
     protected function casts(): array
@@ -26,6 +26,7 @@ class QrOrder extends Model
             'delivery_attempts' => 'integer',
             'delivery_lease_expires_at' => 'datetime',
             'submitted_at' => 'datetime',
+            'received_at' => 'datetime',
             'acknowledged_at' => 'datetime',
         ];
     }
