@@ -163,6 +163,20 @@ class QrCloudOrderingTest extends TestCase
             'local_order_id' => 'local-100',
         ])->assertOk()->assertJsonPath('data.status', 'imported');
     }
+    public function test_public_api_rejects_order_types_not_yet_supported_by_cashier_bridge(): void
+    {
+        $branch = $this->branch();
+        $this->publishItem($branch);
+        $this->postJson('/api/qr/v1/menus/branch-a/orders', [
+            'source_order_uuid' => (string) Str::uuid(),
+            'menu_version' => 1,
+            'fulfillment_type' => 'delivery',
+            'items' => [['source_product_id' => 'sku-1', 'quantity' => 1]],
+        ])->assertStatus(422);
+
+        $this->assertDatabaseCount('qr_orders', 0);
+    }
+
     public function test_order_rejects_unvalidated_option_selections(): void
     {
         $branch = $this->branch();
