@@ -65,8 +65,10 @@ return new class extends Migration
             $table->uuid('delivery_lease_token')->nullable();
             $table->timestamp('delivery_lease_expires_at')->nullable();
             $table->unsignedInteger('delivery_attempts')->default(0);
+            $table->string('local_inbox_id', 100)->nullable();
             $table->string('local_order_id', 100)->nullable();
             $table->text('resolution_note')->nullable();
+            $table->timestamp('received_at')->nullable();
             $table->timestamp('submitted_at');
             $table->timestamp('acknowledged_at')->nullable();
             $table->timestamps();
