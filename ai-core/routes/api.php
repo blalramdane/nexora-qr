@@ -16,4 +16,5 @@ Route::prefix('qr/v1/agent')->middleware([AuthenticateQrBranchAgent::class, 'thr
     Route::put('/menu', [QrBranchAgentController::class, 'publishMenu']);
     Route::get('/orders/pending', [QrBranchAgentController::class, 'pendingOrders']);
     Route::post('/orders/{orderId}/acknowledge', [QrBranchAgentController::class, 'acknowledge'])->whereNumber('orderId');
+    Route::post('/orders/{orderId}/resolve', [QrBranchAgentController::class, 'resolve'])->whereNumber('orderId');
 });
