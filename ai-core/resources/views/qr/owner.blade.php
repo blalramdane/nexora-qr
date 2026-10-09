@@ -135,7 +135,8 @@
       document.getElementById('login-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = document.getElementById('login-submit');
-        const form = new FormData(event.currentTarget);
+        const formElement = event.currentTarget;
+        const form = new FormData(formElement);
         button.disabled = true;
         notice(loginNotice, '', '');
         try {
@@ -144,7 +145,7 @@
             body: JSON.stringify({ email: String(form.get('email') || ''), password: String(form.get('password') || '') }),
           });
           sessionStorage.setItem(tokenKey, data.token);
-          event.currentTarget.reset();
+          formElement.reset();
           await loadDashboard();
         } catch (error) {
           notice(loginNotice, error.message || 'تعذر تسجيل الدخول', 'error');
