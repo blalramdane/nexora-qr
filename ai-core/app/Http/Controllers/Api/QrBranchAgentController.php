@@ -27,7 +27,7 @@ class QrBranchAgentController extends Controller
             'items.*.price_minor' => ['required', 'integer', 'min:0'],
             'items.*.currency' => ['nullable', 'string', 'max:8'],
             'items.*.is_available' => ['required', 'boolean'],
-            'items.*.options' => ['nullable', 'array'],
+            'items.*.options' => ['nullable', 'array', 'size:0'],
         ]);
 
         if ((int) $data['menu_version'] <= (int) $branch->menu_version) {
