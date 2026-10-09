@@ -79,6 +79,7 @@ class QrCloudOrderingTest extends TestCase
         ];
 
         $first = $this->postJson('/api/qr/v1/menus/branch-a/orders', $payload)->assertStatus(202);
+        $branch->forceFill(['menu_version' => 2])->save();
         $this->postJson('/api/qr/v1/menus/branch-a/orders', $payload)->assertOk()->assertJsonPath('order_id', $first->json('order_id'));
         $this->postJson('/api/qr/v1/menus/branch-a/orders', array_merge($payload, [
             'items' => [['source_product_id' => 'sku-1', 'quantity' => 2]],
