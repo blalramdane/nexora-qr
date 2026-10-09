@@ -31,7 +31,7 @@ class QrMenuController extends Controller
         $data = $request->validate([
             'source_order_uuid' => ['required', 'uuid'],
             'menu_version' => ['required', 'integer', 'min:1'],
-            'fulfillment_type' => ['required', 'in:takeaway,dine_in,delivery'],
+            'fulfillment_type' => ['required', 'in:takeaway'],
             'customer_name' => ['nullable', 'string', 'max:120'],
             'customer_phone' => ['required_if:fulfillment_type,delivery', 'nullable', 'string', 'max:40'],
             'customer_address' => ['required_if:fulfillment_type,delivery', 'nullable', 'string', 'max:1000'],
