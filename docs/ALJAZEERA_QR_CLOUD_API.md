@@ -101,3 +101,28 @@ The token is printed once. Store it only in the branch-agent secret store/enviro
 - The QR inbox-to-native-POS conversion must call existing POS domain services and be tested against open-shift, payment, kitchen, inventory, and print workflows.
 - Branch creation/token issuance are CLI-only; secure owner administration UI/API is future work.
 - Run composer test from ai-core and production build checks before merging. Test execution has not been performed by this remote source edit.
+
+## Owner dashboard API (QR operations only)
+
+The current owner dashboard is an API foundation, not a completed web UI. It reports QR queue state and branch sync freshness; it does **not** yet report consolidated POS sales or inventory.
+
+- POST /api/qr/v1/owner/login
+- GET /api/qr/v1/owner/me (Sanctum bearer token)
+- POST /api/qr/v1/owner/logout (Sanctum bearer token)
+- GET /api/qr/v1/owner/dashboard (Sanctum bearer token)
+
+The dashboard returns branch connection freshness, pending QR orders, orders durably received by the cashier inbox, imported/rejected counts for today, and recent QR order statuses. Branch managers are scoped to their assigned branch on the server; owners can see all configured branches. A stale heartbeat is labeled offline_or_stale and must not be presented as live.
+
+Provision the first owner through the CLI after deploying to a non-production environment:
+
+~~~sh
+php artisan qr:user:create "QR Owner" "owner@example.com" owner
+~~~
+
+Create a branch manager by supplying an active branch slug:
+
+~~~sh
+php artisan qr:user:create "Branch Manager" "manager@example.com" branch_manager --branch=aljazeera-branch-1
+~~~
+
+The password prompt is hidden; passwords must be at least 12 characters. Do not pass passwords as command-line arguments. The UI for owner login and dashboard is still outstanding.
