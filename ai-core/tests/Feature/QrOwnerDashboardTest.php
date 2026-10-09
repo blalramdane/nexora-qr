@@ -98,7 +98,7 @@ class QrOwnerDashboardTest extends TestCase
     public function test_public_menu_and_owner_dashboard_pages_render(): void
     {
         $this->get('/m/branch-a')->assertOk()->assertSee('DIGITAL MENU');
-        $this->get('/owner')->assertOk()->assertSee('لوحة متابعة الفروع')->assertSee('qr-owner-token');
+        $this->get('/owner')->assertOk()->assertSee('لوحة متابعة الفروع')->assertSee('qr-owner-token')->assertSee('formElement.reset()', false);
     }
 
     public function test_owner_login_issues_sanctum_token_and_rejects_wrong_password(): void
