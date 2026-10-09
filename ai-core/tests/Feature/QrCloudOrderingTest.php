@@ -143,12 +143,22 @@ class QrCloudOrderingTest extends TestCase
         $order = $this->withToken($token)->getJson('/api/qr/v1/agent/orders/pending')->assertOk()->json('data.0');
         $this->withToken($token)->postJson('/api/qr/v1/agent/orders/'.$order['id'].'/acknowledge', [
             'delivery_lease_token' => (string) Str::uuid(),
-            'status' => 'imported',
-            'local_order_id' => 'local-100',
+            'status' => 'received',
+            'local_inbox_id' => 'inbox-88',
         ])->assertStatus(409);
 
         $this->withToken($token)->postJson('/api/qr/v1/agent/orders/'.$order['id'].'/acknowledge', [
             'delivery_lease_token' => $order['delivery_lease_token'],
+            'status' => 'received',
+            'local_inbox_id' => 'inbox-88',
+        ])->assertOk()->assertJsonPath('data.status', 'received');
+
+        $this->withToken($token)->postJson('/api/qr/v1/agent/orders/'.$order['id'].'/resolve', [
+            'status' => 'imported',
+            'local_order_id' => 'local-100',
+        ])->assertOk()->assertJsonPath('data.status', 'imported');
+
+        $this->withToken($token)->postJson('/api/qr/v1/agent/orders/'.$order['id'].'/resolve', [
             'status' => 'imported',
             'local_order_id' => 'local-100',
         ])->assertOk()->assertJsonPath('data.status', 'imported');
