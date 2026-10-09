@@ -132,7 +132,8 @@
       document.getElementById('order-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         if (getCount() === 0) return;
-        const form = new FormData(event.currentTarget);
+        const formElement = event.currentTarget;
+        const form = new FormData(formElement);
         const button = document.getElementById('submit-order');
         button.disabled = true;
         button.textContent = 'جاري إرسال الطلب...';
@@ -158,7 +159,7 @@
           }
           cart.clear();
           renderCart();
-          event.currentTarget.reset();
+          formElement.reset();
           notice('تم تسجيل طلبك إلكترونيًا برقم ' + data.order_id + '. الطلب غير مدفوع وينتظر مراجعة الفرع.', 'success');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (error) {
