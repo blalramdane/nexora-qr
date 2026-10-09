@@ -44,7 +44,8 @@ Send the one-time token as Authorization: Bearer <token>.
 
 - PUT /api/qr/v1/agent/menu
 - GET /api/qr/v1/agent/orders/pending?limit=20&lease_seconds=60
-- POST /api/qr/v1/agent/orders/{id}/acknowledge
+- POST /api/qr/v1/agent/orders/{id}/acknowledge (durable local inbox receipt)
+- POST /api/qr/v1/agent/orders/{id}/resolve (final cashier accept/reject result)
 
 Menu publish request:
 
@@ -77,7 +78,7 @@ Acknowledge example:
 }
 ~~~
 
-Use status=rejected plus a reason when the cashier cannot accept the order. A valid current lease is required.
+Use status=rejected plus a reason when the cashier cannot accept the order. The acknowledge request uses status=received and requires local_inbox_id plus the current delivery lease. This means the order is safely persisted in the local cashier inbox, not yet accepted as a native POS order. After cashier action, resolve with status=imported plus the native local_order_id, or status=rejected plus a reason. Final resolution is retry-safe.
 
 ## Provisioning (after deploying to a non-production environment)
 
@@ -93,7 +94,7 @@ The token is printed once. Store it only in the branch-agent secret store/enviro
 
 - No live production deployment or migration has been performed.
 - No credentials or customer data were sent to any cloud service.
-- The branch agent client/worker is not implemented in the cashier Electron app yet.
+- The branch agent client/worker is being implemented on the separate Al Jazeera POS feature branch; it is not yet deployed in the installed cashier build.
 - The owner dashboard authentication/reporting UI is not implemented yet.
 - The menu options field is currently a snapshot payload; strict option/modifier validation against an allow-list must be added before enabling options in production.
 - The QR inbox-to-native-POS conversion must call existing POS domain services and be tested against open-shift, payment, kitchen, inventory, and print workflows.
