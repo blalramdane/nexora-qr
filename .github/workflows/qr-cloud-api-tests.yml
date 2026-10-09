@@ -1,0 +1,44 @@
+name: QR Cloud API Tests
+
+on:
+  pull_request:
+    paths:
+      - "ai-core/**"
+      - ".github/workflows/qr-cloud-api-tests.yml"
+  push:
+    branches:
+      - main
+      - "feature/aljazeera-pos-qr-cloud-api"
+    paths:
+      - "ai-core/**"
+      - ".github/workflows/qr-cloud-api-tests.yml"
+
+jobs:
+  laravel-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, dom, fileinfo, sqlite3, pdo_sqlite, curl, xml
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+          php artisan config:clear
+
+      - name: Run Laravel tests
+        run: php artisan test
