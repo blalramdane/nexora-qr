@@ -39,7 +39,7 @@ class QrMenuController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:80'],
             'items.*.source_product_id' => ['required', 'string', 'max:100', 'distinct'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
-            'items.*.options' => ['nullable', 'array', 'max:20'],
+            'items.*.options' => ['sometimes', 'array', 'size:0'],
         ]);
 
         if ((int) $data['menu_version'] !== (int) $branch->menu_version) {
