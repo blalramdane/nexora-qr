@@ -1,0 +1,6 @@
+# Keep other NEXORA projects and duplicate working copies out of this repository.
+/nexora-qr/
+/nexora-distribution-os/
+/rtk/
+/t *REMOTE SYNC*
+/tatus -sb
