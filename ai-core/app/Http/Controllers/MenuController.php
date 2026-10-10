@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Menu;
 use App\Models\Template;
+use App\Services\SyncRestaurantToLocalDirectory;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -70,6 +71,8 @@ class MenuController extends Controller
             'theme' => $theme,
         ]);
 
+        app(SyncRestaurantToLocalDirectory::class)->sync($restaurant);
+
         return to_route('menus.show', $menu);
     }
 
@@ -83,6 +86,7 @@ class MenuController extends Controller
 
         return Inertia::render('Menu/Builder', [
             'menu' => $menuModel,
+            'publicUrl' => route('public.menu.show', [app(TenantContext::class)->restaurant()->slug, $menuModel->slug]),
             'template' => $menuModel->template,
             'templates' => Template::query()
                 ->where('is_active', true)
@@ -165,6 +169,7 @@ class MenuController extends Controller
         }
 
         $menuModel->update(['is_published' => true]);
+        app(SyncRestaurantToLocalDirectory::class)->sync($menuModel->restaurant);
 
         return to_route('menus.show', $menuModel)->with('success', 'Menu published successfully.');
     }
@@ -175,6 +180,7 @@ class MenuController extends Controller
 
         $menuModel = Menu::query()->findOrFail($menu);
         $menuModel->update(['is_published' => false]);
+        app(SyncRestaurantToLocalDirectory::class)->sync($menuModel->restaurant);
 
         return to_route('menus.show', $menuModel)->with('success', 'Menu unpublished successfully.');
     }
@@ -184,7 +190,9 @@ class MenuController extends Controller
         $this->authorizeMenuManagement();
 
         $menuModel = Menu::query()->findOrFail($menu);
+        $restaurant = $menuModel->restaurant;
         $menuModel->delete();
+        app(SyncRestaurantToLocalDirectory::class)->sync($restaurant);
 
         return to_route('menus.index');
     }
@@ -234,17 +242,14 @@ class MenuController extends Controller
         $base = Str::slug($name) ?: 'menu';
         $slug = $base;
 
-        $query = Menu::query()
-            ->withoutGlobalScopes()
-            ->where('restaurant_id', app(TenantContext::class)->id());
-
-        if ($ignoreId !== null) {
-            $query->where('id', '<>', $ignoreId);
-        }
-
         $suffix = 2;
 
-        while ($query->where('slug', $slug)->exists()) {
+        while (Menu::query()
+            ->withoutGlobalScopes()
+            ->where('restaurant_id', app(TenantContext::class)->id())
+            ->when($ignoreId !== null, fn ($query) => $query->where('id', '<>', $ignoreId))
+            ->where('slug', $slug)
+            ->exists()) {
             $slug = $base . '-' . $suffix++;
         }
 

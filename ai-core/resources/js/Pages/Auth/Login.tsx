@@ -40,6 +40,9 @@ export default function Login() {
                 <p className="mt-6 text-center text-sm text-slate-500">
                     أول مرة؟ <Link href="/register" className="font-semibold text-slate-950">أنشئ حسابك</Link>
                 </p>
+                <p className="mt-3 rounded-2xl bg-emerald-50 p-4 text-center text-sm text-emerald-950">
+                    بتدور على شغل دليفري؟ <Link href="/delivery/register" className="font-bold underline">سجّل كمندوب توصيل من هنا</Link>
+                </p>
             </div>
         </main>
     );

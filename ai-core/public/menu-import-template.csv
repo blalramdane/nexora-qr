@@ -1,0 +1,4 @@
+category,product,price,description,variant,variant_price,variant_delta,modifier,modifier_price,modifier_required,modifier_group,group_min,group_max
+Burgers,Classic Burger,120,Beef burger,Single,120,,Extra Cheese,15,false,Extra toppings,0,3
+Burgers,Classic Burger,120,Beef burger,Double,160,,Extra Sauce,5,false,Extra toppings,0,3
+Sides,Fries,45,,,,,,,,,,

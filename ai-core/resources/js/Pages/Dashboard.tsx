@@ -86,6 +86,9 @@ export default function Dashboard({
                         >
                             المنيوهات
                         </Link>
+                        <Link href="/orders" className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800">الطلبات</Link>
+                        <Link href="/delivery-management" className="hidden rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 md:block">الدليفري</Link>
+                        <Link href="/settings/orders" className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700">إعدادات الطلبات</Link>
                         <Form action="/logout" method="post">
                             <button className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
                                 خروج
@@ -216,6 +219,16 @@ export default function Dashboard({
                                     <p className="mt-0.5 text-xs text-slate-500">Fast Food · Café · Fine Dining</p>
                                 </div>
                             </Link>
+                            <Link href="/orders" className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 transition hover:bg-emerald-100">
+                                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">🛎️</span>
+                                <div><p className="font-bold">طلبات العملاء</p><p className="mt-0.5 text-xs text-slate-600">عرض الطلبات الجديدة وتحديث حالتها</p></div>
+                            </Link>
+                            <Link href="/coupons" className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 transition hover:bg-amber-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">％</span><div><p className="font-bold">الكوبونات والعروض</p><p className="mt-0.5 text-xs text-slate-600">أكواد الخصم وشروط الاستخدام</p></div></Link>
+                            <Link href="/delivery-management" className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 transition hover:bg-blue-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">🛵</span><div><p className="font-bold">إدارة الدليفري</p><p className="mt-0.5 text-xs text-slate-600">ضم المندوبين، قبول الدعوات، وتوزيع الطلبات</p></div></Link>
+                            <Link href="/reports/financial" className="flex items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 transition hover:bg-violet-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">📊</span><div><p className="font-bold">التقرير المالي اليومي</p><p className="mt-0.5 text-xs text-slate-600">المبيعات وطرق الدفع وتحصلات المندوبين والفروق</p></div></Link>
+                            <Link href="/expenses" className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 transition hover:bg-rose-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">🧾</span><div><p className="font-bold">مصروفات المطعم</p><p className="mt-0.5 text-xs text-slate-600">الإيجار والمرافق والرواتب والصيانة والمستلزمات</p></div></Link>
+                            <Link href="/purchases" className="flex items-center gap-3 rounded-2xl border border-cyan-200 bg-cyan-50 p-4 transition hover:bg-cyan-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">📦</span><div><p className="font-bold">الموردون والمشتريات</p><p className="mt-0.5 text-xs text-slate-600">فواتير التوريد والمدفوعات والمديونية المتبقية</p></div></Link>
+                            <Link href="/settings/orders" className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:bg-slate-50"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-lg">⚙</span><div><p className="font-bold">إعدادات الطلبات</p><p className="mt-0.5 text-xs text-slate-500">واتساب المطعم، مصاريف التوصيل وطرق الاستلام</p></div></Link>
                             <div className="rounded-2xl bg-slate-50 p-4">
                                 <p className="text-xs font-bold text-slate-400">Restaurant ID</p>
                                 <p className="mt-1 font-black">{restaurant.id}</p>

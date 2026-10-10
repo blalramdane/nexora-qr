@@ -7,10 +7,11 @@ type Product = {
     id: number; name: string; description?: string | null; price: string;
     image_path?: string | null; is_available: boolean; is_featured: boolean;
     variants?: { id: number; name: string; price?: string | null; price_delta?: string }[];
+    modifiers?: { id: number; name: string; price_delta: string; is_active: boolean; is_required: boolean; group_name?: string | null; group_min_choices?: number; group_max_choices?: number }[];
 };
 type Category = { id: number; name: string; description?: string | null; products: Product[] };
 type Theme = { primary: string; accent: string; background: string; foreground: string; radius: 'sm' | 'md' | 'lg' | 'xl' | '2xl' };
-type Menu = { name: string; categories: Category[]; theme?: Theme | null; template?: { key: string; name: string } | null };
+type Menu = { name: string; categories: Category[]; theme?: Theme | null; template?: { key: string; name: string } | null; template_version?: { version: number; is_active: boolean } | null; templateVersion?: { version: number; is_active: boolean } | null };
 type Props = { menu: Menu; restaurantName?: string; preview?: boolean; previewCategoryId?: number };
 
 const money = (value: string) => Number(value).toFixed(0) + ' ج.م';
@@ -18,6 +19,42 @@ const imageUrl = (path?: string | null) => path && (path.startsWith('http') || p
 
 function ProductCard({ product, style, theme }: { product: Product; style: 'compact' | 'editorial' | 'featured'; theme: Theme }) {
     const [expanded, setExpanded] = useState(false);
+    const [selectedVariant, setSelectedVariant] = useState<number | null>(null);
+    const [selectedModifiers, setSelectedModifiers] = useState<number[]>([]);
+    const [choiceError, setChoiceError] = useState('');
+    const variants = product.variants ?? [];
+    const modifiers = (product.modifiers ?? []).filter(modifier => modifier.is_active);
+    const groups = Array.from(new Set(modifiers.map(modifier => modifier.group_name).filter((name): name is string => Boolean(name))));
+    const selectedVariantRecord = variants.find(variant => variant.id === selectedVariant);
+    const price = (selectedVariantRecord?.price != null ? Number(selectedVariantRecord.price) : Number(product.price) + Number(selectedVariantRecord?.price_delta ?? 0)) + modifiers.filter(modifier => selectedModifiers.includes(modifier.id)).reduce((sum, modifier) => sum + Number(modifier.price_delta), 0);
+    const toggleModifier = (id: number, groupName: string | null | undefined, maxChoices: number) => {
+        setChoiceError('');
+        setSelectedModifiers(current => {
+            if (current.includes(id)) return current.filter(existing => existing !== id);
+            const inGroup = modifiers.filter(modifier => (modifier.group_name ?? null) === (groupName ?? null));
+            const groupIds = new Set(inGroup.map(modifier => modifier.id));
+            const currentGroup = current.filter(existing => groupIds.has(existing));
+            if (currentGroup.length >= maxChoices) {
+                if (groupName && maxChoices === 1) return [...current.filter(existing => !groupIds.has(existing)), id];
+                setChoiceError(`يمكن اختيار ${maxChoices} من مجموعة ${groupName || 'الإضافات'}.`);
+                return current;
+            }
+            return [...current, id];
+        });
+    };
+    const addToCart = () => {
+        for (const groupName of groups) {
+            const options = modifiers.filter(modifier => modifier.group_name === groupName);
+            const minimum = Math.max(...options.map(option => Number(option.group_min_choices ?? 0)));
+            const maximum = Math.max(1, Math.min(...options.map(option => Number(option.group_max_choices ?? 1))));
+            const chosen = options.filter(option => selectedModifiers.includes(option.id)).length;
+            if (chosen < minimum || chosen > maximum) { setChoiceError(`اختار من ${minimum} إلى ${maximum} من مجموعة ${groupName}.`); return; }
+        }
+        const ungroupedRequiredMissing = modifiers.some(modifier => !modifier.group_name && modifier.is_required && !selectedModifiers.includes(modifier.id));
+        if (ungroupedRequiredMissing) { setChoiceError('اختار كل الإضافات المطلوبة.'); return; }
+        window.dispatchEvent(new CustomEvent('nexora:add-to-cart', { detail: { productId: product.id, name: product.name, price, variantId: selectedVariant, variantName: selectedVariantRecord?.name, modifiers: modifiers.filter(modifier => selectedModifiers.includes(modifier.id)).map(modifier => ({ id: modifier.id, name: modifier.name, price: Number(modifier.price_delta) })), quantity: 1 } }));
+        setChoiceError('');
+    };
     const shell = style === 'featured' ? 'border-white/10 bg-white/5 text-white' : style === 'editorial' ? 'border-black/10 bg-white' : 'border-black/10 bg-white';
     const radius = ({ sm: '0.5rem', md: '0.75rem', lg: '1rem', xl: '1.25rem', '2xl': '1.75rem' } as const)[theme.radius];
     return <article style={{ borderRadius: radius }} className={'group overflow-hidden border transition ' + shell + (product.is_available ? '' : ' opacity-50')}>
@@ -29,9 +66,15 @@ function ProductCard({ product, style, theme }: { product: Product; style: 'comp
                 <div><h3 className="font-black">{product.name}</h3>{product.description && <p className="mt-1 text-sm opacity-60">{product.description}</p>}</div>
                 <strong className="shrink-0">{money(product.price)}</strong>
             </div>
-            {product.variants && product.variants.length > 0 && <button onClick={() => setExpanded(!expanded)} className="mt-3 text-xs font-bold underline">{expanded ? 'إخفاء الاختيارات' : 'عرض الاختيارات'}</button>}
-            {expanded && <div className="mt-3 space-y-2 border-t border-current/10 pt-3">{product.variants?.map(v => <div key={v.id} className="flex justify-between text-sm"><span>{v.name}</span><span>{v.price ? money(v.price) : v.price_delta ? '+' + money(v.price_delta) : 'بدون تغيير'}</span></div>)}</div>}
-            <button disabled={!product.is_available} style={{ backgroundColor: theme.primary, borderRadius: radius }} className="mt-4 w-full px-4 py-3 text-sm font-black text-white disabled:opacity-40">{product.is_available ? 'إضافة للطلب' : 'غير متاح حالياً'}</button>
+            {(variants.length > 0 || modifiers.length > 0) && <button onClick={() => setExpanded(!expanded)} className="mt-3 text-xs font-bold underline">{expanded ? 'إخفاء الاختيارات' : 'تخصيص الطلب'}</button>}
+            {expanded && <div className="mt-3 space-y-3 border-t border-current/10 pt-3">
+                {variants.length > 0 && <fieldset><legend className="mb-2 text-xs font-black">الحجم / الاختيار</legend>{variants.map(variant => <label key={variant.id} className="flex items-center justify-between gap-2 py-1.5 text-sm"><span className="flex items-center gap-2"><input type="radio" name={`variant-${product.id}`} checked={selectedVariant === variant.id} onChange={() => setSelectedVariant(variant.id)} />{variant.name}</span><span>{variant.price != null ? money(variant.price) : `${Number(product.price) + Number(variant.price_delta ?? 0)} ج.م`}</span></label>)}</fieldset>}
+                {groups.map(groupName => { const options = modifiers.filter(modifier => modifier.group_name === groupName); const minimum = Math.max(...options.map(option => Number(option.group_min_choices ?? 0))); const maximum = Math.max(1, Math.min(...options.map(option => Number(option.group_max_choices ?? 1)))); return <fieldset key={groupName}><legend className="mb-1 text-xs font-black">{groupName} <span className="font-normal opacity-60">(اختار {minimum}–{maximum})</span></legend>{options.map(option => <label key={option.id} className="flex items-center justify-between gap-2 py-1.5 text-sm"><span className="flex items-center gap-2"><input type={maximum === 1 ? 'radio' : 'checkbox'} name={`modifier-${product.id}-${groupName}`} checked={selectedModifiers.includes(option.id)} onChange={() => toggleModifier(option.id, groupName, maximum)} />{option.name}</span><span>{Number(option.price_delta) > 0 ? `+${Number(option.price_delta).toFixed(2)} ج.م` : `${Number(option.price_delta).toFixed(2)} ج.م`}</span></label>)}</fieldset>; })}
+                {modifiers.filter(modifier => !modifier.group_name).length > 0 && <fieldset><legend className="mb-1 text-xs font-black">إضافات</legend>{modifiers.filter(modifier => !modifier.group_name).map(option => <label key={option.id} className="flex items-center justify-between gap-2 py-1.5 text-sm"><span className="flex items-center gap-2"><input type="checkbox" checked={selectedModifiers.includes(option.id)} onChange={() => toggleModifier(option.id, null, 20)} />{option.name}{option.is_required && <span className="text-rose-600">*</span>}</span><span>{Number(option.price_delta) > 0 ? `+${Number(option.price_delta).toFixed(2)} ج.م` : `${Number(option.price_delta).toFixed(2)} ج.م`}</span></label>)}</fieldset>}
+                {choiceError && <p role="alert" className="text-xs font-bold text-rose-600">{choiceError}</p>}
+                <p className="text-sm font-black">السعر بعد الاختيارات: {price.toFixed(2)} ج.م</p>
+            </div>}
+            <button type="button" disabled={!product.is_available} onClick={addToCart} style={{ backgroundColor: theme.primary, borderRadius: radius }} className="mt-4 w-full px-4 py-3 text-sm font-black text-white disabled:opacity-40">{product.is_available ? 'إضافة للطلب' : 'غير متاح حالياً'}</button>
         </div>
     </article>;
 }
@@ -50,7 +93,9 @@ export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restau
     }, [previewCategoryId, menu.categories]);
     const current = categories.find(c => c.id === active) || categories[0];
     const key = menu.template?.key || 'fast-food';
-    const version = Number((menu as any).templateVersion?.version ?? (preview ? 2 : 1));
+    // Laravel serializes Eloquent relationship names to snake_case in JSON.
+    // Support camelCase too for the editor's in-memory preview objects.
+    const version = Number(menu.template_version?.version ?? menu.templateVersion?.version ?? (preview ? 2 : 1));
 
     if (key === 'fast-food' && version >= 2) {
         return <FastFoodTemplate menu={menu} restaurantName={restaurantName} preview={preview} />;

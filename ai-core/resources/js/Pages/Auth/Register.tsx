@@ -46,6 +46,9 @@ export default function Register() {
                 <p className="mt-6 text-center text-sm text-slate-500">
                     عندك حساب؟ <Link href="/login" className="font-semibold text-slate-950">تسجيل الدخول</Link>
                 </p>
+                <p className="mt-3 rounded-2xl bg-emerald-50 p-4 text-center text-sm text-emerald-950">
+                    مش صاحب مطعم؟ <Link href="/delivery/register" className="font-bold underline">سجّل كمندوب توصيل</Link>
+                </p>
             </div>
         </main>
     );

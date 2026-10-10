@@ -32,6 +32,11 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    public function deliveryRider()
+    {
+        return $this->hasOne(DeliveryRider::class);
+    }
+
     public function roleIn(Restaurant $restaurant): ?string
     {
         $membership = $this->restaurants()->whereKey($restaurant->getKey())->first();

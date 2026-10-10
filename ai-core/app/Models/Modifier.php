@@ -15,6 +15,9 @@ class Modifier extends Model
         'restaurant_id',
         'product_id',
         'name',
+        'group_name',
+        'group_min_choices',
+        'group_max_choices',
         'price_delta',
         'is_required',
         'is_active',
@@ -27,6 +30,8 @@ class Modifier extends Model
             'price_delta' => 'decimal:2',
             'is_required' => 'boolean',
             'is_active' => 'boolean',
+            'group_min_choices' => 'integer',
+            'group_max_choices' => 'integer',
         ];
     }
 

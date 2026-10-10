@@ -11,6 +11,7 @@ use App\Models\Template;
 use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class MenuFoundationTest extends TestCase
@@ -144,6 +145,28 @@ class MenuFoundationTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_creating_menus_with_the_same_name_generates_unique_slugs(): void
+    {
+        $restaurant = Restaurant::create(['name' => 'A', 'slug' => 'a']);
+        $owner = User::factory()->create();
+        $restaurant->users()->attach($owner->id, ['role' => 'owner']);
+
+        $template = Template::create(['key' => 'cafe', 'name' => 'Cafe']);
+        $template->createVersion(['components' => ['header']], true);
+        app(TenantContext::class)->set($restaurant);
+
+        $this->actingAs($owner)
+            ->post('/menus', ['name' => 'VIBES', 'template_key' => 'cafe'])
+            ->assertRedirect();
+
+        $this->actingAs($owner)
+            ->post('/menus', ['name' => 'VIBES', 'template_key' => 'cafe'])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('menus', ['restaurant_id' => $restaurant->id, 'slug' => 'vibes']);
+        $this->assertDatabaseHas('menus', ['restaurant_id' => $restaurant->id, 'slug' => 'vibes-2']);
+    }
+
     public function test_menu_update_cannot_cross_tenant_boundary(): void
     {
         $restaurantA = Restaurant::create(['name' => 'A', 'slug' => 'a']);
@@ -174,5 +197,33 @@ class MenuFoundationTest extends TestCase
             'id' => $menuB->id,
             'name' => 'B Menu',
         ]);
+    }
+
+    public function test_csv_menu_import_reuses_existing_products_variants_and_modifiers(): void
+    {
+        $restaurant = Restaurant::create(['name' => 'Import Cafe', 'slug' => 'import-cafe']);
+        $owner = User::factory()->create();
+        $restaurant->users()->attach($owner->id, ['role' => 'owner']);
+        $template = Template::create(['key' => 'cafe', 'name' => 'Cafe']);
+        $template->createVersion(['components' => ['header']], true);
+        app(TenantContext::class)->set($restaurant);
+        $menu = Menu::create(['restaurant_id' => $restaurant->id, 'template_id' => $template->id, 'name' => 'Menu', 'slug' => 'menu']);
+        $csv = "category,product,price,description,variant,variant_price,variant_delta,modifier,modifier_price,modifier_required\n".
+            "Burgers,Classic,100,Beef,Double,150,,Cheese,15,false\n".
+            "Burgers,Classic,100,Beef,Single,100,,Sauce,5,false\n";
+
+        foreach ([1, 2] as $run) {
+            $this->actingAs($owner)
+                ->post("/menus/{$menu->id}/import", ['file' => UploadedFile::fake()->createWithContent('menu.csv', $csv)])
+                ->assertRedirect("/menus/{$menu->id}/import");
+        }
+
+        $category = MenuCategory::where('menu_id', $menu->id)->where('name', 'Burgers')->firstOrFail();
+        $product = Product::where('menu_category_id', $category->id)->where('name', 'Classic')->firstOrFail();
+        $this->assertSame(1, MenuCategory::where('menu_id', $menu->id)->count());
+        $this->assertSame(1, Product::where('menu_category_id', $category->id)->count());
+        $this->assertSame(2, $product->variants()->count());
+        $this->assertSame(2, $product->modifiers()->count());
+        $this->assertDatabaseHas('products', ['id' => $product->id, 'price' => 100]);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Restaurant;
+use App\Services\SyncRestaurantToLocalDirectory;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,7 +38,14 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        if ($request->user()->deliveryRider()->exists() && !$request->user()->restaurants()->exists()) {
+            // Ignore a stale intended URL from a previous account/session.
+            // Otherwise a restaurant owner can be sent back to the rider hub.
+            return redirect()->route('delivery.dashboard');
+        }
+
+        // Always send restaurant accounts to their own dashboard after login.
+        return redirect()->route('dashboard');
     }
 
     public function showRegister(): Response
@@ -74,6 +82,8 @@ class AuthController extends Controller
                 'slug' => 'main',
                 'supported_order_types' => ['dine_in', 'pickup'],
             ]);
+
+            app(SyncRestaurantToLocalDirectory::class)->sync($restaurant);
 
             return $user;
         });

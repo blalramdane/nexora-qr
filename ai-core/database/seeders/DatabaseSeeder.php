@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Template;
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -66,10 +65,5 @@ class DatabaseSeeder extends Seeder
                 $versionOne->activate();
             }
         }
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
     }
 }

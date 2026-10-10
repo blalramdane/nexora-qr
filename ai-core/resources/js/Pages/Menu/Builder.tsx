@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import React, { FormEvent, useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import TemplateRenderer from './TemplateRenderer';
 
 type Template = { id: number; key: string; name: string };
@@ -11,7 +12,7 @@ type Category = {
     sort_order: number;
     is_active: boolean;
     products: Array<{ id: number; name: string; description?: string | null; price: string; image_path?: string | null; is_available: boolean; is_featured: boolean; sort_order: number; variants?: Array<{ id: number; name: string; price?: string | null; price_delta?: string; sort_order: number; is_active: boolean }>;
-        modifiers?: Array<{ id: number; name: string; price_delta: string; sort_order: number; is_required: boolean; is_active: boolean }>;
+        modifiers?: Array<{ id: number; name: string; price_delta: string; sort_order: number; is_required: boolean; is_active: boolean; group_name?: string | null; group_min_choices?: number; group_max_choices?: number }>;
     }>;
 };
 type RenderableMenu = Parameters<typeof TemplateRenderer>[0]['menu'];
@@ -25,7 +26,17 @@ type Menu = Omit<RenderableMenu, 'categories'> & {
     categories: Category[];
 };
 
-export default function MenuBuilder({ menu, template, templates, errors, flash }: { menu: Menu; template: Template | null; templates: Template[]; errors?: Record<string, string | string[]>; flash?: { success?: string | null } }) {
+const themePresets = [
+    { id: 'ember', name: 'Ember Burger', primary: '#f97316', accent: '#fbbf24', background: '#11100f', foreground: '#fff7ed', radius: 'xl' as const, swatches: ['#11100f', '#f97316', '#fbbf24'] },
+    { id: 'espresso', name: 'Espresso Bar', primary: '#3b2418', accent: '#d6a45b', background: '#0d0907', foreground: '#f7ecdc', radius: 'xl' as const, swatches: ['#0d0907', '#3b2418', '#d6a45b'] },
+    { id: 'noir', name: 'Noir Luxe', primary: '#c6a96b', accent: '#f0dfae', background: '#080807', foreground: '#f5efe2', radius: 'lg' as const, swatches: ['#080807', '#c6a96b', '#f0dfae'] },
+    { id: 'fresh', name: 'Fresh & Clean', primary: '#166534', accent: '#84cc16', background: '#f8fafc', foreground: '#17211b', radius: '2xl' as const, swatches: ['#f8fafc', '#166534', '#84cc16'] },
+    { id: 'ocean', name: 'Ocean Pop', primary: '#155e75', accent: '#22d3ee', background: '#07141b', foreground: '#ecfeff', radius: 'xl' as const, swatches: ['#07141b', '#155e75', '#22d3ee'] },
+    { id: 'rose', name: 'Rose Atelier', primary: '#9f1239', accent: '#fda4af', background: '#fff7f8', foreground: '#3b1520', radius: '2xl' as const, swatches: ['#fff7f8', '#9f1239', '#fda4af'] },
+];
+
+export default function MenuBuilder({ menu, template, templates, errors, flash, publicUrl }: { menu: Menu; template: Template | null; templates: Template[]; errors?: Record<string, string | string[]>; flash?: { success?: string | null }; publicUrl?: string }) {
+    const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
     const [name, setName] = useState(menu.name);
     const [templateKey, setTemplateKey] = useState(template?.key ?? '');
     const initialTheme = menu.theme ?? { primary: '#111827', accent: '#f59e0b', background: '#ffffff', foreground: '#111827', radius: 'xl' as const };
@@ -34,6 +45,24 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
     const [themeBackground, setThemeBackground] = useState(initialTheme.background);
     const [themeForeground, setThemeForeground] = useState(initialTheme.foreground);
     const [themeRadius, setThemeRadius] = useState(initialTheme.radius);
+    useEffect(() => {
+        let cancelled = false;
+        if (!menu.is_published || !publicUrl) {
+            setQrCodeDataUrl('');
+            return () => { cancelled = true; };
+        }
+        QRCode.toDataURL(publicUrl, { width: 720, margin: 3, errorCorrectionLevel: 'H', color: { dark: '#111827', light: '#ffffff' } })
+            .then(dataUrl => { if (!cancelled) setQrCodeDataUrl(dataUrl); })
+            .catch(() => { if (!cancelled) setQrCodeDataUrl(''); });
+        return () => { cancelled = true; };
+    }, [menu.is_published, publicUrl]);
+    const applyThemePreset = (preset: typeof themePresets[number]) => {
+        setThemePrimary(preset.primary);
+        setThemeAccent(preset.accent);
+        setThemeBackground(preset.background);
+        setThemeForeground(preset.foreground);
+        setThemeRadius(preset.radius);
+    };
     const [categoryName, setCategoryName] = useState('');
     const [categoryDescription, setCategoryDescription] = useState('');
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -68,10 +97,16 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
     const [modifierName, setModifierName] = useState('');
     const [modifierDelta, setModifierDelta] = useState('');
     const [modifierRequired, setModifierRequired] = useState(false);
+    const [modifierGroup, setModifierGroup] = useState('');
+    const [modifierGroupMin, setModifierGroupMin] = useState('0');
+    const [modifierGroupMax, setModifierGroupMax] = useState('1');
     const [editingModifierId, setEditingModifierId] = useState<number | null>(null);
     const [editingModifierName, setEditingModifierName] = useState('');
     const [editingModifierDelta, setEditingModifierDelta] = useState('');
     const [editingModifierRequired, setEditingModifierRequired] = useState(false);
+    const [editingModifierGroup, setEditingModifierGroup] = useState('');
+    const [editingModifierGroupMin, setEditingModifierGroupMin] = useState('0');
+    const [editingModifierGroupMax, setEditingModifierGroupMax] = useState('1');
     const [dragging, setDragging] = useState<{ type: 'category' | 'product' | 'variant' | 'modifier'; id: number; categoryId?: number; productId?: number } | null>(null);
     const [dragOver, setDragOver] = useState<{ type: 'category' | 'product' | 'variant' | 'modifier'; id: number } | null>(null);
 
@@ -298,7 +333,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
         event.target.value = '';
     };
 
-    const handleProductImageDrop = (event: React.DragEvent<HTMLDivElement>, categoryId: number, productId: number) => {
+    const handleProductImageDrop = (event: React.DragEvent<HTMLLabelElement>, categoryId: number, productId: number) => {
         event.preventDefault();
         const file = event.dataTransfer.files?.[0];
         if (file) uploadProductImage(file, categoryId, productId);
@@ -520,10 +555,13 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
         router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers', {
             name: modifierName,
             price_delta: modifierDelta,
-            is_required: modifierRequired,
+            is_required: modifierRequired && !modifierGroup.trim(),
+            group_name: modifierGroup.trim() || null,
+            group_min_choices: Number(modifierGroupMin),
+            group_max_choices: Number(modifierGroupMax),
             is_active: true,
         }, { onSuccess: () => {
-            setModifierName(''); setModifierDelta(''); setModifierRequired(false); setModifierProductId(null);
+            setModifierName(''); setModifierDelta(''); setModifierRequired(false); setModifierGroup(''); setModifierGroupMin('0'); setModifierGroupMax('1'); setModifierProductId(null);
         }});
     };
 
@@ -532,6 +570,9 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
         setEditingModifierName(modifier.name);
         setEditingModifierDelta(modifier.price_delta);
         setEditingModifierRequired(modifier.is_required);
+        setEditingModifierGroup(modifier.group_name ?? '');
+        setEditingModifierGroupMin(String(modifier.group_min_choices ?? 0));
+        setEditingModifierGroupMax(String(modifier.group_max_choices ?? 1));
     };
 
     const saveModifier = (event: FormEvent, categoryId: number, productId: number, modifierId: number) => {
@@ -543,7 +584,10 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
         router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/' + modifierId, {
             name: editingModifierName,
             price_delta: editingModifierDelta,
-            is_required: editingModifierRequired,
+            is_required: editingModifierRequired && !editingModifierGroup.trim(),
+            group_name: editingModifierGroup.trim() || null,
+            group_min_choices: Number(editingModifierGroupMin),
+            group_max_choices: Number(editingModifierGroupMax),
             is_active: modifier.is_active,
             sort_order: modifier.sort_order,
         }, { onSuccess: () => setEditingModifierId(null) });
@@ -554,6 +598,9 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
             name: modifier.name,
             price_delta: modifier.price_delta,
             is_required: modifier.is_required,
+            group_name: modifier.group_name ?? null,
+            group_min_choices: modifier.group_min_choices ?? 0,
+            group_max_choices: modifier.group_max_choices ?? 1,
             is_active: !modifier.is_active,
             sort_order: modifier.sort_order,
         });
@@ -582,7 +629,11 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                         <span className="text-xs font-bold text-amber-600">MENU BUILDER</span>
                         <h1 className="font-black">{menu.name}</h1>
                     </div>
-                    <Link href="/menus" className="text-sm font-bold underline">كل المنيوهات</Link>
+                    <div className="flex items-center gap-2">
+                        {menu.is_published && publicUrl && <a href={publicUrl} target="_blank" rel="noreferrer" className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white">فتح المنيو المنشورة ↗</a>}
+                        {menu.is_published && publicUrl && <button type="button" onClick={() => navigator.clipboard.writeText(publicUrl)} className="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-700">نسخ الرابط</button>}
+                        <Link href="/menus" className="text-sm font-bold underline">كل المنيوهات</Link>
+                    </div>
                 </div>
             </div>
 
@@ -610,10 +661,27 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                             </button>
                         )}
                         <p className="mt-2 text-center text-[11px] text-slate-400">النشر يتطلب Template Version + قسم نشط + منتج متاح.</p>
+                        {menu.is_published && publicUrl && <div className="mt-3 rounded-xl bg-emerald-50 p-3"><p className="text-xs font-bold text-emerald-800">رابط المنيو للعميل</p><a href={publicUrl} target="_blank" rel="noreferrer" className="mt-1 block break-all text-xs text-emerald-700 underline">{publicUrl}</a>{qrCodeDataUrl && <div className="mt-4 rounded-xl border border-emerald-100 bg-white p-4 text-center"><img src={qrCodeDataUrl} alt={'QR code for ' + menu.name} className="mx-auto aspect-square w-48 max-w-full"/><p className="mt-2 text-sm font-black text-slate-900">امسح الكود لفتح المنيو</p><p className="mt-1 text-[10px] text-slate-500">كود عالي الدقة مناسب للطباعة على الترابيزات والمنيو الورقي.</p><a href={qrCodeDataUrl} download={'nexora-qr-' + menu.slug + '.png'} className="mt-3 block rounded-lg bg-emerald-700 px-3 py-2 text-center text-xs font-black text-white">تحميل QR للطباعة (PNG)</a></div>}<button type="button" onClick={() => navigator.clipboard.writeText(publicUrl)} className="mt-3 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-700">نسخ رابط المنيو</button><Link href="/orders" className="mt-3 block rounded-lg bg-slate-950 px-3 py-2 text-center text-xs font-black text-white">فتح طلبات المطعم</Link></div>}
                     </section>
 
                     <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
                         <h2 className="text-lg font-black">إعدادات المنيو</h2>
+                        <Link href={`/menus/${menu.id}/import`} className="mt-3 block rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-center text-sm font-black text-amber-800">استيراد منيو جاهز من CSV</Link>
+                        <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-3">
+                            <p className="mb-3 text-sm font-black">معرض القوالب — اختار وشوف المعاينة فورًا</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                {templates.map((item, index) => {
+                                    const selected = templateKey === item.key;
+                                    const palettes = [ ['#17120f', '#fb923c', '#facc15'], ['#f8f2e8', '#6f4e37', '#c49a6c'], ['#101010', '#c6a96b', '#f4e4bd'] ];
+                                    const [background, primary, accent] = palettes[index % palettes.length];
+                                    return <button key={item.id} type="button" onClick={() => setTemplateKey(item.key)} aria-pressed={selected} className={'overflow-hidden rounded-xl border text-right transition hover:shadow-md ' + (selected ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-slate-200')}>
+                                        <span className="block p-3" style={{ background }}><span className="mb-3 block h-2 w-12 rounded-full" style={{ background: primary }} /><span className="block rounded-lg p-2" style={{ background: primary + '22', border: '1px solid ' + primary + '66' }}><span className="block h-2 w-3/4 rounded-full" style={{ background: accent }} /><span className="mt-2 flex gap-1"><span className="h-8 flex-1 rounded" style={{ background: accent + '44' }} /><span className="h-8 flex-1 rounded" style={{ background: primary + '66' }} /></span></span></span>
+                                        <span className="flex items-center justify-between gap-1 bg-white px-2 py-2"><span className="truncate text-[11px] font-black">{item.name}</span><span className={'text-[9px] font-black ' + (selected ? 'text-indigo-700' : 'text-slate-400')}>{selected ? 'محدد ✓' : 'اختيار'}</span></span>
+                                    </button>;
+                                })}
+                            </div>
+                            <p className="mt-2 text-[10px] text-slate-500">التغيير يظهر في المعاينة الحية؛ اضغط «حفظ التعديلات» لتثبيت القالب.</p>
+                        </div>
                         <form onSubmit={save} className="mt-5 space-y-4">
                             <label className="block">
                                 <span className="mb-2 block text-sm font-bold">اسم المنيو</span>
@@ -637,6 +705,18 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                                 <h2 className="mt-1 text-lg font-black">ألوان وشكل المنيو</h2>
                             </div>
                             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">Live</span>
+                        </div>
+                        <div className="mt-4">
+                            <p className="mb-2 text-xs font-black text-slate-500">اختار هوية جاهزة — المعاينة تتحدث فورًا</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                {themePresets.map((preset) => {
+                                    const activePreset = themePrimary.toLowerCase() === preset.primary.toLowerCase() && themeAccent.toLowerCase() === preset.accent.toLowerCase() && themeBackground.toLowerCase() === preset.background.toLowerCase() && themeForeground.toLowerCase() === preset.foreground.toLowerCase();
+                                    return <button key={preset.id} type="button" onClick={() => applyThemePreset(preset)} aria-pressed={activePreset} className={'flex min-w-0 items-center gap-2 rounded-xl border p-2 text-right transition hover:-translate-y-0.5 hover:shadow-md ' + (activePreset ? 'border-slate-900 bg-slate-50 ring-2 ring-slate-900/10' : 'border-slate-200 bg-white')}>
+                                        <span className="flex h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-black/10"><span className="flex-1" style={{ background: preset.swatches[0] }} /><span className="flex-1" style={{ background: preset.swatches[1] }} /><span className="flex-1" style={{ background: preset.swatches[2] }} /></span>
+                                        <span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black">{preset.name}</span><span className="mt-0.5 block text-[9px] text-slate-400">{activePreset ? 'محدد حاليًا' : 'تجربة فورية'}</span></span>
+                                    </button>;
+                                })}
+                            </div>
                         </div>
                         <form onSubmit={saveTheme} className="mt-4 space-y-3">
                             <div className="grid grid-cols-2 gap-2">
@@ -814,7 +894,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                                                         <div className="flex items-center gap-2">
                                                             <label className="cursor-pointer rounded-lg border border-dashed border-slate-300 px-2 py-1 text-[10px] font-bold hover:bg-white">
                                                                 {product.image_path ? 'تغيير الصورة' : 'رفع صورة'}
-                                                                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => uploadProductImage(e, category.id, product.id)} />
+                                                                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadProductImage(file, category.id, product.id); e.target.value = ''; }} />
                                                             </label>
                                                             {product.image_path && <button type="button" onClick={() => removeProductImage(category.id, product.id)} className="rounded-lg border border-red-200 px-2 py-1 text-[10px] font-bold text-red-600">حذف الصورة</button>}
                                                             <span className="text-[10px] text-slate-400">JPG / PNG / WebP · حتى 5MB</span>
@@ -882,6 +962,8 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                                                             <input value={modifierDelta} onChange={(e) => setModifierDelta(e.target.value)} type="number" step="0.01" placeholder="+ / - من السعر" required className="rounded-lg border px-2 py-1.5 text-xs" />
                                                             <label className="flex items-center gap-1 rounded-lg border bg-white px-2 text-[10px] font-bold"><input type="checkbox" checked={modifierRequired} onChange={(e) => setModifierRequired(e.target.checked)} /> مطلوب</label>
                                                         </div>
+                                                        <label className="block text-[10px] font-bold">مجموعة اختيارات (اختياري)<input value={modifierGroup} onChange={(e) => setModifierGroup(e.target.value)} placeholder="مثال: اختار صوص" maxLength={120} className="mt-1 w-full rounded-lg border px-2 py-1.5 text-xs font-normal" /></label>
+                                                        {modifierGroup.trim() && <div className="grid grid-cols-2 gap-2"><label className="text-[10px] font-bold">أقل اختيارات<input type="number" min="0" max="20" value={modifierGroupMin} onChange={(e) => setModifierGroupMin(e.target.value)} className="mt-1 w-full rounded-lg border px-2 py-1.5 text-xs font-normal" /></label><label className="text-[10px] font-bold">أقصى اختيارات<input type="number" min="1" max="20" value={modifierGroupMax} onChange={(e) => setModifierGroupMax(e.target.value)} className="mt-1 w-full rounded-lg border px-2 py-1.5 text-xs font-normal" /></label><p className="col-span-2 text-[10px] text-slate-500">كل الخيارات بنفس اسم المجموعة لازم تستخدم نفس الحد الأدنى والأقصى.</p></div>}
                                                         <button type="submit" className="w-full rounded-lg bg-emerald-600 px-2 py-1.5 text-xs font-black text-white">إضافة Modifier</button>
                                                     </form>
                                                 )}
@@ -895,11 +977,13 @@ export default function MenuBuilder({ menu, template, templates, errors, flash }
                                                                         <input value={editingModifierDelta} onChange={(e) => setEditingModifierDelta(e.target.value)} type="number" step="0.01" required className="rounded border px-2 py-1 text-xs" />
                                                                         <label className="flex items-center gap-1 rounded border px-2 text-[10px] font-bold"><input type="checkbox" checked={editingModifierRequired} onChange={(e) => setEditingModifierRequired(e.target.checked)} /> مطلوب</label>
                                                                     </div>
+                                                                    <label className="block text-[10px] font-bold">مجموعة اختيارات<input value={editingModifierGroup} onChange={(e) => setEditingModifierGroup(e.target.value)} maxLength={120} placeholder="اتركه فارغًا للإضافة المستقلة" className="mt-1 w-full rounded border px-2 py-1.5 text-xs font-normal" /></label>
+                                                                    {editingModifierGroup.trim() && <div className="grid grid-cols-2 gap-2"><label className="text-[10px] font-bold">الحد الأدنى<input type="number" min="0" max="20" value={editingModifierGroupMin} onChange={(e) => setEditingModifierGroupMin(e.target.value)} className="mt-1 w-full rounded border px-2 py-1.5 text-xs font-normal" /></label><label className="text-[10px] font-bold">الحد الأقصى<input type="number" min="1" max="20" value={editingModifierGroupMax} onChange={(e) => setEditingModifierGroupMax(e.target.value)} className="mt-1 w-full rounded border px-2 py-1.5 text-xs font-normal" /></label></div>}
                                                                     <div className="flex gap-1.5"><button type="submit" className="flex-1 rounded bg-slate-900 px-2 py-1 text-[11px] font-bold text-white">حفظ</button><button type="button" onClick={() => setEditingModifierId(null)} className="rounded border px-2 py-1 text-[11px] font-bold">إلغاء</button></div>
                                                                 </form>
                                                             ) : (
                                                                 <div className="flex items-center gap-1.5">
-                                                                    <div className="min-w-0 flex-1"><span className="mr-1 text-[9px] text-slate-400">⠿</span><p className="truncate text-xs font-black">{modifier.name}</p><p className="text-[10px] text-slate-500">{Number(modifier.price_delta) >= 0 ? '+' : ''}{Number(modifier.price_delta).toFixed(2)} ج.م · {modifier.is_required ? 'مطلوب' : 'اختياري'}</p></div>
+                                                                    <div className="min-w-0 flex-1"><span className="mr-1 text-[9px] text-slate-400">⠿</span><p className="truncate text-xs font-black">{modifier.name}</p><p className="text-[10px] text-slate-500">{Number(modifier.price_delta) >= 0 ? '+' : ''}{Number(modifier.price_delta).toFixed(2)} ج.م · {modifier.group_name ? `${modifier.group_name} (${modifier.group_min_choices ?? 0}–${modifier.group_max_choices ?? 1})` : modifier.is_required ? 'مطلوب' : 'اختياري'}</p></div>
                                                                     <button type="button" disabled={modifierIndex === 0} onClick={() => moveModifier(category.id, product.id, modifiers, modifierIndex, -1)} className="rounded border px-1.5 text-[10px] disabled:opacity-30">↑</button>
                                                                     <button type="button" disabled={modifierIndex === modifiers.length - 1} onClick={() => moveModifier(category.id, product.id, modifiers, modifierIndex, 1)} className="rounded border px-1.5 text-[10px] disabled:opacity-30">↓</button>
                                                                     <button type="button" onClick={() => startEditingModifier(modifier)} className="rounded border px-1.5 py-1 text-[10px]">تعديل</button>

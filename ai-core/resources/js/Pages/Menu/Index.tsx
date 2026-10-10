@@ -182,6 +182,7 @@ export default function MenuIndex({ menus, templates }: { menus: Menu[]; templat
                 </section>
 
                 <section className="mt-8">
+                    <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-black">عندك منيو جاهز؟</h2><p className="mt-1 text-xs leading-6 text-slate-600">افتح أي منيو واستورد ملف CSV، أو كمّل الإضافة اليدوية من الـBuilder. الأصناف الموجودة تتحدّث بدل ما تتكرر.</p></div><span className="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-black text-indigo-700">CSV Import</span></div>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <p className="text-[10px] font-black tracking-[.22em] text-slate-400">DESIGN SYSTEM</p>

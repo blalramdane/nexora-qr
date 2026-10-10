@@ -17,6 +17,7 @@ class ModifierController extends Controller
         $menuModel = $this->menu($menu);
         $productModel = $this->product($menuModel, $category, $product);
         $data = $this->validated($request);
+        $this->assertGroupRules($data, $productModel);
 
         $productModel->modifiers()->create(array_merge(
             ['restaurant_id' => app(TenantContext::class)->id()],
@@ -33,6 +34,7 @@ class ModifierController extends Controller
         $productModel = $this->product($menuModel, $category, $product);
         $modifierModel = $productModel->modifiers()->whereKey($modifier)->firstOrFail();
         $data = $this->validated($request);
+        $this->assertGroupRules($data, $productModel, $modifierModel->id);
 
         $modifierModel->update($this->modifierPayload($data, $productModel, $modifierModel->sort_order));
 
@@ -82,11 +84,31 @@ class ModifierController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:120'],
+            'group_name' => ['nullable', 'string', 'max:120'],
+            'group_min_choices' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'group_max_choices' => ['nullable', 'integer', 'min:1', 'max:20'],
             'price_delta' => ['required', 'numeric', 'min:-99999999.99', 'max:99999999.99'],
             'is_required' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
+    }
+
+    private function assertGroupRules(array $data, Product $product, ?int $excludeId = null): void
+    {
+        $groupName = trim((string) ($data['group_name'] ?? ''));
+        if ($groupName === '') return;
+
+        $minimum = (int) ($data['group_min_choices'] ?? 0);
+        $maximum = (int) ($data['group_max_choices'] ?? 1);
+        if ($minimum > $maximum) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['group_min_choices' => 'الحد الأدنى لازم يكون أقل من أو يساوي الحد الأقصى.']);
+        }
+
+        $existing = $product->modifiers()->where('group_name', $groupName)->when($excludeId, fn ($query) => $query->where('id', '!=', $excludeId))->get();
+        if ($existing->contains(fn ($modifier) => (int) $modifier->group_min_choices !== $minimum || (int) $modifier->group_max_choices !== $maximum)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['group_name' => 'كل اختيارات المجموعة لازم يكون لها نفس الحد الأدنى والأقصى.']);
+        }
     }
 
     private function modifierPayload(array $data, Product $product, ?int $existingSortOrder = null): array
@@ -95,8 +117,11 @@ class ModifierController extends Controller
 
         return [
             'name' => $data['name'],
+            'group_name' => trim((string) ($data['group_name'] ?? '')) !== '' ? trim($data['group_name']) : null,
+            'group_min_choices' => (int) ($data['group_min_choices'] ?? 0),
+            'group_max_choices' => (int) ($data['group_max_choices'] ?? 1),
             'price_delta' => $data['price_delta'],
-            'is_required' => $data['is_required'] ?? false,
+            'is_required' => trim((string) ($data['group_name'] ?? '')) === '' ? ($data['is_required'] ?? false) : false,
             'is_active' => $data['is_active'] ?? true,
             'sort_order' => $sortOrder,
         ];

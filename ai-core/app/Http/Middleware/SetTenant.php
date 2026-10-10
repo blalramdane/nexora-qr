@@ -16,6 +16,13 @@ class SetTenant
 
         abort_unless($user, 401);
 
+        // A rider-only account can have an old intended URL pointing at the
+        // restaurant dashboard. Send it to the rider dashboard instead of
+        // showing a misleading restaurant-membership 403.
+        if ($user->restaurants()->doesntExist() && $user->deliveryRider()->exists()) {
+            return redirect()->route('delivery.dashboard');
+        }
+
         $restaurant = $user->restaurants()
             ->where('restaurants.is_active', true)
             ->first();
