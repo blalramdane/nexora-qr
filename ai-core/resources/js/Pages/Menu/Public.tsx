@@ -7,11 +7,14 @@ type Restaurant = {
     name: string;
     slug: string;
     logo_path?: string | null;
+    phone?: string | null;
+    whatsapp_phone?: string | null;
     delivery_fee?: string | number;
     delivery_areas?: string[];
     delivery_enabled?: boolean;
     pickup_enabled?: boolean;
 };
+type TableContext = { name: string; token: string } | null;
 
 type PublicMenu = {
     name: string;
@@ -24,10 +27,11 @@ type PublicMenu = {
         radius: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
     } | null;
     template?: { key: string; name: string } | null;
-    template_version?: { version: number; is_active: boolean } | null;
+    template_version?: { version: number; is_active: boolean; schema?: { layout?: string; theme?: NonNullable<PublicMenu['theme']> } } | null;
     categories: Array<{
         id: number;
         name: string;
+        slug: string;
         description?: string | null;
         is_active: boolean;
         products: Array<{
@@ -44,15 +48,15 @@ type PublicMenu = {
     }>;
 };
 
-export default function Public({ restaurant, menu }: { restaurant: Restaurant; menu: PublicMenu }) {
+export default function Public({ restaurant, menu, tableContext }: { restaurant: Restaurant; menu: PublicMenu; tableContext?: TableContext }) {
     return (
         <>
             <Head title={`${menu.name} — ${restaurant.name}`}>
                 <meta name="description" content={`${menu.name} من ${restaurant.name}. تصفح قائمة الطعام والأسعار.`} />
-                <meta name="robots" content="index,follow" />
+                <meta name="robots" content={tableContext ? 'noindex,nofollow' : 'index,follow'} />
             </Head>
-            <TemplateRenderer menu={menu} restaurantName={restaurant.name} />
-            <PublicOrderCart restaurantSlug={restaurant.slug} menuSlug={menu.slug} accent={menu.theme?.accent} primary={menu.theme?.primary} deliveryFee={restaurant.delivery_fee} deliveryAreas={restaurant.delivery_areas} deliveryEnabled={restaurant.delivery_enabled} pickupEnabled={restaurant.pickup_enabled} />
+            <TemplateRenderer menu={menu} restaurantName={restaurant.name} logoPath={restaurant.logo_path} restaurantPhone={restaurant.phone} restaurantWhatsappPhone={restaurant.whatsapp_phone} />
+            <PublicOrderCart restaurantSlug={restaurant.slug} restaurantName={restaurant.name} whatsappPhone={restaurant.whatsapp_phone} menuSlug={menu.slug} accent={menu.theme?.accent} primary={menu.theme?.primary} deliveryFee={restaurant.delivery_fee} deliveryAreas={restaurant.delivery_areas} deliveryEnabled={restaurant.delivery_enabled} pickupEnabled={restaurant.pickup_enabled} tableToken={tableContext?.token} tableName={tableContext?.name} />
             <AiWaiter restaurantSlug={restaurant.slug} menuSlug={menu.slug} accent={menu.theme?.primary} />
         </>
     );

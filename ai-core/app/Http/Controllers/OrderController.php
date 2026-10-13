@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Menu;
 use App\Models\Product;
-use App\Models\LocalBusiness;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,10 +19,15 @@ class OrderController extends Controller
     {
         $this->authorizeOrderManagement();
         $restaurantId = app(TenantContext::class)->id();
-        $orders = Order::query()->where('restaurant_id', $restaurantId)->with(['menu:id,name', 'items', 'deliveryRider.user:id,name'])
+        $orders = Order::query()->where('restaurant_id', $restaurantId)->with(['menu:id,name', 'items', 'deliveryRider.user:id,name', 'restaurantTable:id,name'])
             ->latest()->limit(100)->get();
 
         $restaurant = app(TenantContext::class)->restaurant();
+        $ownerContext = request()->routeIs('owner.restaurants.orders.*');
+        $ordersBaseUrl = $ownerContext ? '/owner/restaurants/'.$restaurant->id.'/orders' : '/orders';
+        $settingsUrl = $ownerContext
+            ? route('owner.restaurants.settings.orders.edit', $restaurant)
+            : route('restaurant.settings.edit');
         $manualOrderCatalog = Menu::query()->where('restaurant_id', $restaurantId)->where('is_published', true)
             ->with(['categories.products' => fn ($query) => $query->where('is_available', true)->select('id', 'menu_category_id', 'name', 'price')])
             ->get(['id', 'name'])
@@ -36,6 +40,11 @@ class OrderController extends Controller
             ])->values();
         return Inertia::render('Orders/Index', [
             'orders' => $orders,
+            'ordersBaseUrl' => $ordersBaseUrl,
+            'settingsUrl' => $settingsUrl,
+            'backUrl' => $ownerContext ? route('owner.menus.index') : route('dashboard'),
+            'ownerContext' => $ownerContext,
+            'dashboardOrderNotificationsEnabled' => (bool) ($restaurant->dashboard_order_notifications_enabled ?? true),
             'manualOrderCatalog' => $manualOrderCatalog,
             'salesSummary' => [
                 'completed_count' => Order::query()->where('restaurant_id', $restaurantId)->where('status', 'completed')->count(),
@@ -114,7 +123,7 @@ class OrderController extends Controller
             $order->statusHistory()->create(['from_status' => null, 'to_status' => 'new', 'changed_by' => $request->user()?->id]);
         });
 
-        return to_route('orders.index')->with('success', 'تم تسجيل الطلب وإضافته إلى صندوق الطلبات.');
+        return to_route(request()->routeIs('owner.restaurants.orders.*') ? 'owner.restaurants.orders.index' : 'orders.index', request()->routeIs('owner.restaurants.orders.*') ? ['restaurant' => $restaurant->id] : [])->with('success', 'تم تسجيل الطلب وإضافته إلى صندوق الطلبات.');
     }
 
     public function updateStatus(Request $request, int $order): RedirectResponse
@@ -129,7 +138,7 @@ class OrderController extends Controller
             'completed' => [],
             'cancelled' => [],
         ];
-        DB::transaction(function () use ($data, $order, $transitions) {
+        DB::transaction(function () use ($data, $order, $transitions, $request) {
             $record = Order::query()->where('restaurant_id', app(TenantContext::class)->id())->lockForUpdate()->findOrFail($order);
             abort_unless(in_array($data['status'], $transitions[$record->status] ?? [], true), 422, 'انتقال حالة الطلب غير مسموح.');
             $previousStatus = $record->status;
@@ -137,19 +146,14 @@ class OrderController extends Controller
             $record->statusHistory()->create([
                 'from_status' => $previousStatus,
                 'to_status' => $data['status'],
-                'changed_by' => request()->user()?->id,
+                'changed_by' => $request->user()?->id,
             ]);
-            $business = LocalBusiness::query()->where('restaurant_id', $record->restaurant_id)->first();
-            $business?->activities()->create([
-                'user_id' => request()->user()?->id,
-                'type' => 'order_status',
-                'outcome' => $data['status'],
-                'channel' => $record->source === 'qr_menu' ? 'qr_menu' : 'pos',
-                'notes' => 'تحديث حالة الطلب '.$record->order_number.' من '.$previousStatus.' إلى '.$data['status'],
-                'occurred_at' => now(),
-            ]);
+
         });
-        return to_route('orders.index')->with('success', 'تم تحديث حالة الطلب.');
+
+        return request()->routeIs('owner.restaurants.orders.*')
+            ? to_route('owner.restaurants.orders.index', ['restaurant' => app(TenantContext::class)->id()])->with('success', 'تم تحديث حالة الطلب.')
+            : to_route('orders.index')->with('success', 'تم تحديث حالة الطلب.');
     }
 
     public function updatePaymentStatus(Request $request, int $order): RedirectResponse
@@ -166,24 +170,17 @@ class OrderController extends Controller
             abort_unless(in_array($data['payment_status'], $allowed[$record->payment_status] ?? [], true), 422, 'تغيير حالة الدفع غير مسموح.');
             abort_unless($record->status !== 'cancelled' || $data['payment_status'] === 'refunded', 422, 'لا يمكن تسجيل دفع لطلب ملغي.');
             $record->update(['payment_status' => $data['payment_status']]);
-            $business = LocalBusiness::query()->where('restaurant_id', $record->restaurant_id)->first();
-            $business?->activities()->create([
-                'user_id' => request()->user()?->id,
-                'type' => 'payment_status',
-                'outcome' => $data['payment_status'],
-                'channel' => $record->source === 'qr_menu' ? 'qr_menu' : 'pos',
-                'notes' => 'تحديث حالة دفع الطلب '.$record->order_number.' إلى '.$data['payment_status'],
-                'occurred_at' => now(),
-            ]);
         });
 
-        return to_route('orders.index')->with('success', 'تم تحديث حالة الدفع.');
+        return request()->routeIs('owner.restaurants.orders.*')
+            ? to_route('owner.restaurants.orders.index', ['restaurant' => app(TenantContext::class)->id()])->with('success', 'تم تحديث حالة الدفع.')
+            : to_route('orders.index')->with('success', 'تم تحديث حالة الدفع.');
     }
 
     private function authorizeOrderManagement(): void
     {
         $user = request()->user();
         $restaurant = app(TenantContext::class)->restaurant();
-        abort_unless($user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager', 403);
+        abort_unless($user?->isPlatformOwner() || $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager', 403);
     }
 }

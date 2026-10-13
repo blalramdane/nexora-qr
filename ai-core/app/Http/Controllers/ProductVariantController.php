@@ -23,7 +23,7 @@ class ProductVariantController extends Controller
             $this->variantPayload($data, $productModel)
         ));
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function update(Request $request, int $menu, int $category, int $product, int $variant): RedirectResponse
@@ -36,7 +36,7 @@ class ProductVariantController extends Controller
 
         $variantModel->update($this->variantPayload($data, $productModel, $variantModel->sort_order));
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function destroy(int $menu, int $category, int $product, int $variant): RedirectResponse
@@ -46,7 +46,7 @@ class ProductVariantController extends Controller
         $productModel = $this->product($menuModel, $category, $product);
         $productModel->variants()->whereKey($variant)->firstOrFail()->delete();
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function reorder(Request $request, int $menu, int $category, int $product): RedirectResponse
@@ -75,7 +75,7 @@ class ProductVariantController extends Controller
             }
         });
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     private function validated(Request $request): array
@@ -135,7 +135,7 @@ class ProductVariantController extends Controller
         $restaurant = app(TenantContext::class)->restaurant();
 
         abort_unless(
-            $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
+            $user?->isPlatformOwner() || $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
             403
         );
     }

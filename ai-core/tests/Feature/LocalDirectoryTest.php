@@ -45,7 +45,7 @@ class LocalDirectoryTest extends TestCase
     {
         $this->get('/local-scout')->assertRedirect('/login');
 
-        $user = User::create(['name' => 'NEXORA Operator', 'email' => 'scout@example.test', 'password' => 'test-password']);
+        $user = $this->platformOwner('scout@example.test');
         $this->actingAs($user)->get('/local-scout')->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('Local/Scout')->where('stats.all', 0));
 
@@ -63,7 +63,7 @@ class LocalDirectoryTest extends TestCase
 
     public function test_scout_refuses_to_publish_business_without_a_source_url(): void
     {
-        $user = User::create(['name' => 'NEXORA Operator', 'email' => 'scout2@example.test', 'password' => 'test-password']);
+        $user = $this->platformOwner('scout2@example.test');
         $business = LocalBusiness::create(['name' => 'Unverified Place', 'slug' => 'unverified-place', 'city' => 'الزرقا', 'category' => 'مطعم']);
 
         $this->actingAs($user)->patch('/local-scout/businesses/'.$business->id, ['listing_status' => 'published'])
@@ -74,7 +74,7 @@ class LocalDirectoryTest extends TestCase
 
     public function test_scout_stores_sales_pipeline_fields_and_updates_contact_timestamp(): void
     {
-        $user = User::create(['name' => 'NEXORA Operator', 'email' => 'scout-pipeline@example.test', 'password' => 'test-password']);
+        $user = $this->platformOwner('scout-pipeline@example.test');
 
         $this->actingAs($user)->post('/local-scout/businesses', [
             'name' => 'مطعم مسار المبيعات',
@@ -151,7 +151,7 @@ class LocalDirectoryTest extends TestCase
 
     public function test_scout_counts_due_followups_and_prioritizes_them(): void
     {
-        $user = User::create(['name' => 'NEXORA Operator', 'email' => 'scout-followups@example.test', 'password' => 'test-password']);
+        $user = $this->platformOwner('scout-followups@example.test');
 
         $due = LocalBusiness::create([
             'name' => 'Due Follow-up',
@@ -186,7 +186,7 @@ class LocalDirectoryTest extends TestCase
 
     public function test_closing_a_lead_clears_its_next_followup(): void
     {
-        $user = User::create(['name' => 'NEXORA Operator', 'email' => 'scout-closed@example.test', 'password' => 'test-password']);
+        $user = $this->platformOwner('scout-closed@example.test');
         $business = LocalBusiness::create([
             'name' => 'Closed Follow-up',
             'slug' => 'closed-follow-up',
@@ -208,7 +208,7 @@ class LocalDirectoryTest extends TestCase
 
     public function test_scout_records_business_activity_and_updates_sales_stage(): void
     {
-        $user = User::create(['name' => 'NEXORA Operator', 'email' => 'scout-activity@example.test', 'password' => 'test-password']);
+        $user = $this->platformOwner('scout-activity@example.test');
         $business = LocalBusiness::create([
             'name' => 'مطعم سجل النشاط', 'slug' => 'activity-log-restaurant', 'city' => 'الزرقا',
             'category' => 'مطعم', 'lead_status' => 'contacted', 'next_action_at' => now()->addDay(),
@@ -234,7 +234,7 @@ class LocalDirectoryTest extends TestCase
 
     public function test_scout_shows_recent_orders_status_history_payment_activity_and_performance_for_linked_restaurants(): void
     {
-        $user = User::create(['name' => 'Scout Order Viewer', 'email' => 'scout-orders@example.test', 'password' => 'test-password']);
+        $user = $this->platformOwner('scout-orders@example.test', 'Scout Order Viewer');
         $restaurant = Restaurant::create(['name' => 'مطعم مربوط', 'slug' => 'scout-linked-restaurant', 'is_active' => true]);
         $business = LocalBusiness::create([
             'restaurant_id' => $restaurant->id,
@@ -275,7 +275,7 @@ class LocalDirectoryTest extends TestCase
     {
         config(['services.google_places.enabled' => false, 'services.google_places.key' => 'test-key']);
         Http::preventStrayRequests();
-        $user = User::create(['name' => 'NEXORA Operator', 'email' => 'scout3@example.test', 'password' => 'test-password']);
+        $user = $this->platformOwner('scout3@example.test');
 
         $this->actingAs($user)->postJson('/local-scout/discover', ['query' => 'مطاعم', 'city' => 'الزرقا'])
             ->assertUnprocessable()
@@ -301,7 +301,7 @@ class LocalDirectoryTest extends TestCase
                 ]],
             ], 200),
         ]);
-        $user = User::create(['name' => 'NEXORA Operator', 'email' => 'scout4@example.test', 'password' => 'test-password']);
+        $user = $this->platformOwner('scout4@example.test');
 
         $this->actingAs($user)->postJson('/local-scout/discover', ['query' => 'مطاعم', 'city' => 'الزرقا'])
             ->assertOk()
@@ -313,5 +313,23 @@ class LocalDirectoryTest extends TestCase
         Http::assertSent(fn ($request) => $request->url() === 'https://places.googleapis.com/v1/places:searchText'
             && $request->hasHeader('X-Goog-Api-Key', 'test-key'));
         $this->assertDatabaseCount('local_businesses', 0);
+    }
+
+    public function test_local_scout_does_not_expose_cross_restaurant_data_to_an_ordinary_user(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get('/local-scout')->assertForbidden();
+        $this->actingAs($user)->post('/local-scout/businesses', [
+            'name' => 'Unauthorized Restaurant', 'city' => 'الزرقا', 'category' => 'مطعم', 'menu_status' => 'unknown',
+        ])->assertForbidden();
+    }
+
+    private function platformOwner(string $email, string $name = 'NEXORA Operator'): User
+    {
+        $user = User::create(['name' => $name, 'email' => $email, 'password' => 'test-password']);
+        $user->forceFill(['is_platform_owner' => true])->save();
+
+        return $user;
     }
 }

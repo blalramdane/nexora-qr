@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexora.local/schemas/ai-os-execution-report.schema.json",
+  "title": "AI OS Execution Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "project", "task_id", "status", "started_at", "finished_at", "summary", "changed_files", "checks", "blockers", "next_action"],
+  "properties": {
+    "run_id": {"type": "string", "minLength": 1},
+    "project": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["done", "needs_review", "blocked", "failed", "in_progress"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "summary": {"type": "string"},
+    "changed_files": {"type": "array", "items": {"type": "string"}},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "evidence"],
+        "properties": {
+          "name": {"type": "string"},
+          "status": {"enum": ["passed", "failed", "skipped", "not_run"]},
+          "command": {"type": "string"},
+          "evidence": {"type": "string"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "blockers": {"type": "array", "items": {"type": "string"}},
+    "next_action": {"type": "string"},
+    "commit": {"type": ["string", "null"]},
+    "pull_request": {"type": ["string", "null"]},
+    "approval_required": {"type": "array", "items": {"type": "string"}}
+  }
+}

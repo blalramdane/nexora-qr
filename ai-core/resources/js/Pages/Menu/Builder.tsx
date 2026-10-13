@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import React, { FormEvent, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import TemplateRenderer from './TemplateRenderer';
+import PwaInstallPrompt from '../../Components/PwaInstallPrompt';
 
 type Template = { id: number; key: string; name: string };
 type Category = {
@@ -18,6 +19,7 @@ type Category = {
 type RenderableMenu = Parameters<typeof TemplateRenderer>[0]['menu'];
 type Menu = Omit<RenderableMenu, 'categories'> & {
     id: number;
+    restaurant_id: number;
     slug: string;
     is_published: boolean;
     template_id: number | null;
@@ -35,7 +37,9 @@ const themePresets = [
     { id: 'rose', name: 'Rose Atelier', primary: '#9f1239', accent: '#fda4af', background: '#fff7f8', foreground: '#3b1520', radius: '2xl' as const, swatches: ['#fff7f8', '#9f1239', '#fda4af'] },
 ];
 
-export default function MenuBuilder({ menu, template, templates, errors, flash, publicUrl }: { menu: Menu; template: Template | null; templates: Template[]; errors?: Record<string, string | string[]>; flash?: { success?: string | null }; publicUrl?: string }) {
+export default function MenuBuilder({ menu, template, templates, errors, flash, publicUrl, managementBase, menusIndexUrl, restaurantName }: { menu: Menu; template: Template | null; templates: Template[]; errors?: Record<string, string | string[]>; flash?: { success?: string | null }; publicUrl?: string; managementBase?: string; menusIndexUrl?: string; restaurantName?: string }) {
+    const menuBasePath = managementBase ?? `/menus/${menu.id}`;
+    const menuIndexPath = menusIndexUrl ?? '/menus';
     const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
     const [name, setName] = useState(menu.name);
     const [templateKey, setTemplateKey] = useState(template?.key ?? '');
@@ -94,6 +98,8 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
     const [editingVariantPrice, setEditingVariantPrice] = useState('');
     const [editingVariantDelta, setEditingVariantDelta] = useState('');
     const [modifierProductId, setModifierProductId] = useState<number | null>(null);
+    const [expandedVariantsProductId, setExpandedVariantsProductId] = useState<number | null>(null);
+    const [expandedModifiersProductId, setExpandedModifiersProductId] = useState<number | null>(null);
     const [modifierName, setModifierName] = useState('');
     const [modifierDelta, setModifierDelta] = useState('');
     const [modifierRequired, setModifierRequired] = useState(false);
@@ -109,18 +115,59 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
     const [editingModifierGroupMax, setEditingModifierGroupMax] = useState('1');
     const [dragging, setDragging] = useState<{ type: 'category' | 'product' | 'variant' | 'modifier'; id: number; categoryId?: number; productId?: number } | null>(null);
     const [dragOver, setDragOver] = useState<{ type: 'category' | 'product' | 'variant' | 'modifier'; id: number } | null>(null);
+    const [contentTab, setContentTab] = useState<'products' | 'categories'>('products');
+    const [productSearch, setProductSearch] = useState('');
+    const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'available' | 'hidden' | 'featured' | 'missing-image'>('all');
+    const [productCategoryFilter, setProductCategoryFilter] = useState<'all' | number>('all');
+    const [showProductForm, setShowProductForm] = useState(false);
+    const [productImageError, setProductImageError] = useState('');
+    const [productUploadProgress, setProductUploadProgress] = useState<number | null>(null);
+    const [isSavingProduct, setIsSavingProduct] = useState(false);
+    const [imageUploadErrors, setImageUploadErrors] = useState<Record<number, string>>({});
+    const [imageUploadProgress, setImageUploadProgress] = useState<Record<number, number>>({});
+    const [imageUploadPreviews, setImageUploadPreviews] = useState<Record<number, string>>({});
+    const productStats = menu.categories.reduce((stats, category) => {
+        for (const product of category.products) {
+            stats.total += 1;
+            if (product.is_available) stats.available += 1;
+            if (product.is_featured) stats.featured += 1;
+            if (!product.image_path) stats.missingImage += 1;
+        }
+        return stats;
+    }, { total: 0, available: 0, featured: 0, missingImage: 0 });
+    const activeCategoriesCount = menu.categories.filter(category => category.is_active).length;
+    const availableProductsInActiveCategories = menu.categories
+        .filter(category => category.is_active)
+        .reduce((count, category) => count + category.products.filter(product => product.is_available).length, 0);
+    const publishChecklist = [
+        { label: 'قالب تصميم محفوظ', done: Boolean(menu.template_id && (menu.template_version || menu.templateVersion)) },
+        { label: 'قسم نشط واحد على الأقل', done: activeCategoriesCount > 0, detail: `${activeCategoriesCount.toLocaleString('ar-EG')} قسم` },
+        { label: 'صنف متاح داخل قسم نشط', done: availableProductsInActiveCategories > 0, detail: `${availableProductsInActiveCategories.toLocaleString('ar-EG')} صنف` },
+    ];
+    const productSearchQuery = productSearch.trim().toLocaleLowerCase('ar-EG');
+    const matchesProductFilters = (product: Category['products'][number]) => {
+        const textMatches = !productSearchQuery || `${product.name} ${product.description ?? ''}`.toLocaleLowerCase('ar-EG').includes(productSearchQuery);
+        const statusMatches = productStatusFilter === 'all'
+            || (productStatusFilter === 'available' && product.is_available)
+            || (productStatusFilter === 'hidden' && !product.is_available)
+            || (productStatusFilter === 'featured' && product.is_featured)
+            || (productStatusFilter === 'missing-image' && !product.image_path);
+        return textMatches && statusMatches;
+    };
+    const visibleProducts = menu.categories.flatMap(category => category.products.map((product, index) => ({ category, product, index })))
+        .filter(({ category, product }) => matchesProductFilters(product) && (productCategoryFilter === 'all' || category.id === productCategoryFilter));
 
-    const publishMenu = () => router.post('/menus/' + menu.id + '/publish');
-    const unpublishMenu = () => router.post('/menus/' + menu.id + '/unpublish');
+    const publishMenu = () => router.post(menuBasePath + '/publish');
+    const unpublishMenu = () => router.post(menuBasePath + '/unpublish');
 
     const save = (event: FormEvent) => {
         event.preventDefault();
-        router.put('/menus/' + menu.id, { name, template_key: templateKey });
+        router.put(menuBasePath, { name, template_key: templateKey });
     };
 
     const saveTheme = (event: FormEvent) => {
         event.preventDefault();
-        router.put('/menus/' + menu.id + '/theme', {
+        router.put(menuBasePath + '/theme', {
             primary: themePrimary,
             accent: themeAccent,
             background: themeBackground,
@@ -131,26 +178,26 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
 
     const remove = () => {
         if (window.confirm('حذف المنيو نهائيًا؟')) {
-            router.delete('/menus/' + menu.id);
+            router.delete(menuBasePath);
         }
     };
 
     const publish = () => {
-        router.post('/menus/' + menu.id + '/publish');
+        router.post(menuBasePath + '/publish');
     };
 
     const unpublish = () => {
-        router.post('/menus/' + menu.id + '/unpublish');
+        router.post(menuBasePath + '/unpublish');
     };
 
     const previewTemplate = templates.find((item) => item.key === templateKey) ?? template;
-    const previewDraftProduct = productCategoryId && (productName.trim() || productPrice || productDescription.trim() || productImage.trim())
+    const previewDraftProduct = productCategoryId && (productName.trim() || productPrice || productDescription.trim() || productImage.trim() || productImageFile)
         ? {
             id: -1,
             name: productName.trim() || 'اسم المنتج',
             description: productDescription.trim() || 'وصف المنتج يظهر هنا',
             price: productPrice || '0',
-            image_path: productImage.trim() || null,
+            image_path: productImagePreview || productImage.trim() || null,
             is_available: true,
             is_featured: productFeatured,
             sort_order: -1,
@@ -208,7 +255,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
     const addCategory = (event: FormEvent) => {
         event.preventDefault();
         if (!categoryName.trim()) return;
-        router.post('/menus/' + menu.id + '/categories', {
+        router.post(menuBasePath + '/categories', {
             name: categoryName,
             description: categoryDescription || null,
         }, {
@@ -228,7 +275,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
     const updateCategory = (event: FormEvent) => {
         event.preventDefault();
         if (!editingId || !editingName.trim()) return;
-        router.put('/menus/' + menu.id + '/categories/' + editingId, {
+        router.put(menuBasePath + '/categories/' + editingId, {
             name: editingName,
             description: editingDescription || null,
             is_active: menu.categories.find(c => c.id === editingId)?.is_active ?? true,
@@ -238,7 +285,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
     };
 
     const toggleCategory = (category: Category) => {
-        router.put('/menus/' + menu.id + '/categories/' + category.id, {
+        router.put(menuBasePath + '/categories/' + category.id, {
             name: category.name,
             description: category.description ?? null,
             sort_order: category.sort_order,
@@ -248,7 +295,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
 
     const deleteCategory = (category: Category) => {
         if (window.confirm('حذف القسم؟ المنتجات المرتبطة به سيتم حذفها أيضًا.')) {
-            router.delete('/menus/' + menu.id + '/categories/' + category.id);
+            router.delete(menuBasePath + '/categories/' + category.id);
         }
     };
 
@@ -268,8 +315,10 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
             payload.image = productImageFile;
         }
 
-        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products', payload, {
+        router.post(menuBasePath + '/categories/' + categoryId + '/products', payload, {
             forceFormData: Boolean(productImageFile),
+            onStart: () => { setIsSavingProduct(true); setProductUploadProgress(productImageFile ? 0 : null); },
+            onProgress: progress => setProductUploadProgress(productImageFile ? progress?.percentage ?? 0 : null),
             onSuccess: () => {
                 setProductName('');
                 setProductDescription('');
@@ -277,14 +326,30 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
                 setProductImage('');
                 setProductImageFile(null);
                 setProductImagePreview(null);
+                setProductImageError('');
                 setProductFeatured(false);
                 setProductCategoryId(null);
+                setShowProductForm(false);
             },
+            onError: errors => setProductImageError(errors.image ?? errors.name ?? errors.price ?? 'تعذر حفظ المنتج. راجع البيانات وحاول مرة أخرى.'),
+            onFinish: () => { setProductUploadProgress(null); setIsSavingProduct(false); },
         });
     };
 
     const selectNewProductImage = (file: File) => {
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) return;
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            setProductImageFile(null);
+            setProductImagePreview(null);
+            setProductImageError('الصيغة غير مدعومة. استخدم JPG أو PNG أو WebP.');
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            setProductImageFile(null);
+            setProductImagePreview(null);
+            setProductImageError('حجم الصورة أكبر من 5MB. اختار صورة أصغر.');
+            return;
+        }
+        setProductImageError('');
         setProductImageFile(file);
         setProductImagePreview(URL.createObjectURL(file));
     };
@@ -295,7 +360,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         event.target.value = '';
     };
 
-    const handleNewProductImageDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const handleNewProductImageDrop = (event: React.DragEvent<HTMLLabelElement>) => {
         event.preventDefault();
         const file = event.dataTransfer.files?.[0];
         if (file) selectNewProductImage(file);
@@ -304,6 +369,19 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
     const clearNewProductImage = () => {
         setProductImageFile(null);
         setProductImagePreview(null);
+        setProductImageError('');
+    };
+
+    const closeProductForm = () => {
+        setShowProductForm(false);
+        setProductCategoryId(null);
+        setProductName('');
+        setProductDescription('');
+        setProductPrice('');
+        setProductImage('');
+        setProductFeatured(false);
+        clearNewProductImage();
+        setProductImageError('');
     };
 
     useEffect(() => {
@@ -313,17 +391,58 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
     }, [productImagePreview]);
 
     const uploadProductImage = (file: File, categoryId: number, productId: number) => {
-        if (!file.type.startsWith('image/')) return;
-        if (file.size > 5 * 1024 * 1024) return;
+        if (imageUploadProgress[productId] !== undefined) return;
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            setImageUploadErrors(previous => ({ ...previous, [productId]: 'الصيغة غير مدعومة. استخدم JPG أو PNG أو WebP.' }));
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            setImageUploadErrors(previous => ({ ...previous, [productId]: 'حجم الصورة أكبر من 5MB. اختار صورة أصغر.' }));
+            return;
+        }
+        setImageUploadErrors(previous => { const next = { ...previous }; delete next[productId]; return next; });
+        setImageUploadProgress(previous => ({ ...previous, [productId]: 0 }));
 
         const localPreview = URL.createObjectURL(file);
+        setImageUploadPreviews(previous => {
+            const existing = previous[productId];
+            if (existing) URL.revokeObjectURL(existing);
+            return { ...previous, [productId]: localPreview };
+        });
         setEditingProductImagePreview(localPreview);
 
-        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/image', { image: file }, {
+        router.post(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/image', { image: file }, {
             forceFormData: true,
-            onSuccess: () => {
+            onProgress: progress => setImageUploadProgress(previous => ({ ...previous, [productId]: progress?.percentage ?? 0 })),
+            onSuccess: page => {
+                const returnedMenu = (page.props as { menu?: Menu }).menu;
+                const savedProduct = returnedMenu?.categories.flatMap(category => category.products).find(product => product.id === productId);
+                if (savedProduct?.image_path) {
+                    window.dispatchEvent(new CustomEvent('nexora:product-image-updated', {
+                        detail: { productId, imagePath: savedProduct.image_path },
+                    }));
+                }
                 setEditingProductImage('');
+                setEditingProductImagePreview(null);
+                setImageUploadPreviews(previous => {
+                    const next = { ...previous };
+                    delete next[productId];
+                    return next;
+                });
+                URL.revokeObjectURL(localPreview);
+                setImageUploadErrors(previous => { const next = { ...previous }; delete next[productId]; return next; });
             },
+            onError: errors => {
+                setEditingProductImagePreview(null);
+                setImageUploadPreviews(previous => {
+                    const next = { ...previous };
+                    delete next[productId];
+                    return next;
+                });
+                URL.revokeObjectURL(localPreview);
+                setImageUploadErrors(previous => ({ ...previous, [productId]: errors.image ?? 'تعذر رفع الصورة. راجع نوع الملف وحجمه.' }));
+            },
+            onFinish: () => setImageUploadProgress(previous => { const next = { ...previous }; delete next[productId]; return next; }),
         });
     };
 
@@ -341,7 +460,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
 
     const removeProductImage = (categoryId: number, productId: number) => {
         if (window.confirm('حذف صورة المنتج؟')) {
-            router.delete('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/image', {
+            router.delete(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/image', {
                 onSuccess: () => {
                     setEditingProductImagePreview(null);
                     setEditingProductImage('');
@@ -370,7 +489,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         if (!editingProductName.trim() || !editingProductPrice) return;
         const product = menu.categories.find(c => c.id === categoryId)?.products.find(p => p.id === productId);
         if (!product) return;
-        router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId, {
+        router.put(menuBasePath + '/categories/' + categoryId + '/products/' + productId, {
             name: editingProductName.trim(),
             description: editingProductDescription.trim() || null,
             price: editingProductPrice,
@@ -388,7 +507,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
     }, [editingProductImagePreview]);
 
     const toggleProduct = (category: Category, product: Category['products'][number]) => {
-        router.put('/menus/' + menu.id + '/categories/' + category.id + '/products/' + product.id, {
+        router.put(menuBasePath + '/categories/' + category.id + '/products/' + product.id, {
             name: product.name,
             description: product.description ?? null,
             price: product.price,
@@ -401,7 +520,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
 
     const deleteProduct = (category: Category, product: Category['products'][number]) => {
         if (window.confirm('حذف المنتج؟')) {
-            router.delete('/menus/' + menu.id + '/categories/' + category.id + '/products/' + product.id);
+            router.delete(menuBasePath + '/categories/' + category.id + '/products/' + product.id);
         }
     };
 
@@ -410,7 +529,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         if (nextIndex < 0 || nextIndex >= category.products.length) return;
         const ids = category.products.map(p => p.id);
         [ids[index], ids[nextIndex]] = [ids[nextIndex], ids[index]];
-        router.post('/menus/' + menu.id + '/categories/' + category.id + '/products/reorder', { product_ids: ids });
+        router.post(menuBasePath + '/categories/' + category.id + '/products/reorder', { product_ids: ids });
     };
 
     const addVariant = (event: FormEvent, categoryId: number, productId: number) => {
@@ -418,7 +537,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         if (!variantName.trim()) return;
         if (variantPricingMode === 'fixed' && !variantPrice) return;
         if (variantPricingMode === 'delta' && !variantDelta) return;
-        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants', {
+        router.post(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/variants', {
             name: variantName,
             pricing_mode: variantPricingMode,
             price: variantPricingMode === 'fixed' ? variantPrice : null,
@@ -447,7 +566,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         const product = menu.categories.find(c => c.id === categoryId)?.products.find(p => p.id === productId);
         const variant = product?.variants?.find(v => v.id === variantId);
         if (!variant) return;
-        router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/' + variantId, {
+        router.put(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/variants/' + variantId, {
             name: editingVariantName,
             pricing_mode: editingVariantPricingMode,
             price: editingVariantPricingMode === 'fixed' ? editingVariantPrice : null,
@@ -458,7 +577,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
     };
 
     const toggleVariant = (categoryId: number, productId: number, variant: NonNullable<Category['products'][number]['variants']>[number]) => {
-        router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/' + variant.id, {
+        router.put(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/variants/' + variant.id, {
             name: variant.name,
             pricing_mode: variant.price !== null && variant.price !== undefined ? 'fixed' : 'delta',
             price: variant.price ?? null,
@@ -473,11 +592,11 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         if (nextIndex < 0 || nextIndex >= variants.length) return;
         const ids = variants.map(v => v.id);
         [ids[index], ids[nextIndex]] = [ids[nextIndex], ids[index]];
-        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/reorder', { variant_ids: ids });
+        router.post(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/variants/reorder', { variant_ids: ids });
     };
 
     const deleteVariant = (categoryId: number, productId: number, variantId: number) => {
-        if (window.confirm('حذف الـVariant؟')) router.delete('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/' + variantId);
+        if (window.confirm('حذف الـVariant؟')) router.delete(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/variants/' + variantId);
     };
 
     const finishDrag = () => {
@@ -493,7 +612,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         if (from < 0 || to < 0) return finishDrag();
         ids.splice(from, 1);
         ids.splice(to, 0, dragging.id);
-        router.post('/menus/' + menu.id + '/categories/reorder', { category_ids: ids }, { onFinish: finishDrag });
+        router.post(menuBasePath + '/categories/reorder', { category_ids: ids }, { onFinish: finishDrag });
     };
 
     const reorderProductsByDrop = (category: Category, targetId: number) => {
@@ -504,7 +623,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         if (from < 0 || to < 0) return finishDrag();
         ids.splice(from, 1);
         ids.splice(to, 0, dragging.id);
-        router.post('/menus/' + menu.id + '/categories/' + category.id + '/products/reorder', { product_ids: ids }, { onFinish: finishDrag });
+        router.post(menuBasePath + '/categories/' + category.id + '/products/reorder', { product_ids: ids }, { onFinish: finishDrag });
     };
 
     const reorderVariantsByDrop = (categoryId: number, productId: number, variants: NonNullable<Category['products'][number]['variants']>, targetId: number) => {
@@ -515,7 +634,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         if (from < 0 || to < 0) return finishDrag();
         ids.splice(from, 1);
         ids.splice(to, 0, dragging.id);
-        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/variants/reorder', { variant_ids: ids }, { onFinish: finishDrag });
+        router.post(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/variants/reorder', { variant_ids: ids }, { onFinish: finishDrag });
     };
 
     const reorderModifiersByDrop = (categoryId: number, productId: number, modifiers: NonNullable<Category['products'][number]['modifiers']>, targetId: number) => {
@@ -526,7 +645,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         if (from < 0 || to < 0) return finishDrag();
         ids.splice(from, 1);
         ids.splice(to, 0, dragging.id);
-        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/reorder', { modifier_ids: ids }, { onFinish: finishDrag });
+        router.post(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/modifiers/reorder', { modifier_ids: ids }, { onFinish: finishDrag });
     };
 
     const beginDrag = (event: React.DragEvent, type: 'category' | 'product' | 'variant' | 'modifier', id: number, categoryId?: number, productId?: number) => {
@@ -546,13 +665,13 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         if (nextIndex < 0 || nextIndex >= menu.categories.length) return;
         const ids = menu.categories.map(c => c.id);
         [ids[index], ids[nextIndex]] = [ids[nextIndex], ids[index]];
-        router.post('/menus/' + menu.id + '/categories/reorder', { category_ids: ids });
+        router.post(menuBasePath + '/categories/reorder', { category_ids: ids });
     };
 
     const addModifier = (event: FormEvent, categoryId: number, productId: number) => {
         event.preventDefault();
         if (!modifierName.trim() || !modifierDelta) return;
-        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers', {
+        router.post(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/modifiers', {
             name: modifierName,
             price_delta: modifierDelta,
             is_required: modifierRequired && !modifierGroup.trim(),
@@ -581,7 +700,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         const product = menu.categories.find(c => c.id === categoryId)?.products.find(p => p.id === productId);
         const modifier = product?.modifiers?.find(m => m.id === modifierId);
         if (!modifier) return;
-        router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/' + modifierId, {
+        router.put(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/modifiers/' + modifierId, {
             name: editingModifierName,
             price_delta: editingModifierDelta,
             is_required: editingModifierRequired && !editingModifierGroup.trim(),
@@ -594,7 +713,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
     };
 
     const toggleModifier = (categoryId: number, productId: number, modifier: NonNullable<Category['products'][number]['modifiers']>[number]) => {
-        router.put('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/' + modifier.id, {
+        router.put(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/modifiers/' + modifier.id, {
             name: modifier.name,
             price_delta: modifier.price_delta,
             is_required: modifier.is_required,
@@ -608,7 +727,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
 
     const deleteModifier = (categoryId: number, productId: number, modifierId: number) => {
         if (window.confirm('حذف الـ Modifier؟')) {
-            router.delete('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/' + modifierId);
+            router.delete(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/modifiers/' + modifierId);
         }
     };
 
@@ -617,28 +736,56 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
         if (nextIndex < 0 || nextIndex >= modifiers.length) return;
         const ids = modifiers.map(m => m.id);
         [ids[index], ids[nextIndex]] = [ids[nextIndex], ids[index]];
-        router.post('/menus/' + menu.id + '/categories/' + categoryId + '/products/' + productId + '/modifiers/reorder', { modifier_ids: ids });
+        router.post(menuBasePath + '/categories/' + categoryId + '/products/' + productId + '/modifiers/reorder', { modifier_ids: ids });
     };
 
     return (
         <div dir="rtl" className="min-h-screen bg-slate-100">
             <Head title={'Builder · ' + menu.name} />
-            <div className="border-b border-slate-200 bg-white px-4 py-3">
+            <div className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-xl">
                 <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
                     <div>
                         <span className="text-xs font-bold text-amber-600">MENU BUILDER</span>
                         <h1 className="font-black">{menu.name}</h1>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Link href={`${menuBasePath}/import`} className="rounded-xl bg-amber-500 px-3 py-2 text-xs font-black text-slate-950 shadow-sm transition hover:bg-amber-400">ابدأ بصور المنيو أو CSV</Link>
                         {menu.is_published && publicUrl && <a href={publicUrl} target="_blank" rel="noreferrer" className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white">فتح المنيو المنشورة ↗</a>}
                         {menu.is_published && publicUrl && <button type="button" onClick={() => navigator.clipboard.writeText(publicUrl)} className="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-700">نسخ الرابط</button>}
-                        <Link href="/menus" className="text-sm font-bold underline">كل المنيوهات</Link>
+                        <Link href={menuIndexPath} className="text-sm font-bold underline">كل المنيوهات</Link>
                     </div>
                 </div>
             </div>
 
-            <main className="mx-auto grid max-w-7xl gap-6 p-4 lg:grid-cols-[24rem_1fr] lg:p-6">
-                <aside className="space-y-4">
+            <section className="mx-auto grid max-w-7xl grid-cols-2 gap-3 px-4 pt-5 sm:grid-cols-4 lg:px-6">
+                {[
+                    { label: 'إجمالي المنتجات', value: productStats.total, hint: 'PRODUCTS', tone: 'text-slate-900', icon: '▦' },
+                    { label: 'متاح للبيع', value: productStats.available, hint: 'AVAILABLE', tone: 'text-emerald-700', icon: '✓' },
+                    { label: 'منتجات مميزة', value: productStats.featured, hint: 'FEATURED', tone: 'text-amber-700', icon: '✦' },
+                    { label: 'محتاجة صور', value: productStats.missingImage, hint: 'IMAGE AUDIT', tone: 'text-rose-700', icon: '▧' },
+                ].map(stat => <button key={stat.label} type="button" onClick={() => {
+                    const filter = stat.label === 'محتاجة صور' ? 'missing-image' : stat.label === 'متاح للبيع' ? 'available' : stat.label === 'منتجات مميزة' ? 'featured' : 'all';
+                    setProductStatusFilter(filter);
+                    setContentTab('products');
+                    window.setTimeout(() => document.getElementById('menu-content-studio')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+                }} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:p-5">
+                    <div className="flex items-center justify-between gap-2"><span className="text-[9px] font-black tracking-[.17em] text-slate-400">{stat.hint}</span><span className={`grid h-8 w-8 place-items-center rounded-xl bg-slate-50 text-base ${stat.tone}`}>{stat.icon}</span></div>
+                    <p className="mt-3 text-2xl font-black tabular-nums sm:text-3xl">{stat.value.toLocaleString('ar-EG')}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">{stat.label}</p>
+                    <p className="mt-2 text-[10px] font-bold text-emerald-700">اضغط للانتقال ↙</p>
+                </button>)}
+            </section>
+
+            <PwaInstallPrompt />
+
+            <nav aria-label="اختصارات إدارة المنيو من الموبايل" className="fixed inset-x-3 bottom-3 z-[70] grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-2xl backdrop-blur-xl lg:hidden">
+                <a href="#menu-content-studio" className="flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-2 text-center text-xs font-black text-white">المنتجات والصور</a>
+                <Link href={`${menuBasePath}/import`} className="flex min-h-11 items-center justify-center rounded-xl bg-amber-400 px-2 text-center text-xs font-black text-slate-950">استيراد المنيو</Link>
+                <Link href={menuBasePath.startsWith('/owner/') ? `/owner/restaurants/${menu.restaurant_id}/orders` : '/orders'} className="flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-2 text-center text-xs font-black text-white">صندوق الطلبات</Link>
+            </nav>
+
+            <main className="mx-auto grid max-w-[1600px] grid-cols-1 gap-5 p-4 sm:p-5 lg:gap-6 lg:p-7">
+                <aside className="min-w-0 flex flex-col gap-5">
                     <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
                             <div>
@@ -660,13 +807,21 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
                                 إلغاء النشر
                             </button>
                         )}
-                        <p className="mt-2 text-center text-[11px] text-slate-400">النشر يتطلب Template Version + قسم نشط + منتج متاح.</p>
+                        <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3" aria-label="متطلبات نشر المنيو">
+                            <p className="mb-1 text-xs font-black text-slate-700">جاهزية النشر</p>
+                            {publishChecklist.map(item => <div key={item.label} className="flex items-center gap-2 text-xs">
+                                <span aria-hidden="true" className={'grid h-5 w-5 shrink-0 place-items-center rounded-full font-black ' + (item.done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>{item.done ? '✓' : '!'}</span>
+                                <span className={item.done ? 'text-slate-700' : 'font-bold text-slate-800'}>{item.label}</span>
+                                {'detail' in item && <span className="mr-auto text-[10px] text-slate-500">{item.detail}</span>}
+                            </div>)}
+                            {publishChecklist.some(item => !item.done) && <p className="pt-1 text-[11px] leading-5 text-amber-800">كمّل العناصر اللي عليها علامة !؛ هتظهر هنا حالتها قبل النشر عشان تعرف الخطوة الناقصة.</p>}
+                        </div>
                         {menu.is_published && publicUrl && <div className="mt-3 rounded-xl bg-emerald-50 p-3"><p className="text-xs font-bold text-emerald-800">رابط المنيو للعميل</p><a href={publicUrl} target="_blank" rel="noreferrer" className="mt-1 block break-all text-xs text-emerald-700 underline">{publicUrl}</a>{qrCodeDataUrl && <div className="mt-4 rounded-xl border border-emerald-100 bg-white p-4 text-center"><img src={qrCodeDataUrl} alt={'QR code for ' + menu.name} className="mx-auto aspect-square w-48 max-w-full"/><p className="mt-2 text-sm font-black text-slate-900">امسح الكود لفتح المنيو</p><p className="mt-1 text-[10px] text-slate-500">كود عالي الدقة مناسب للطباعة على الترابيزات والمنيو الورقي.</p><a href={qrCodeDataUrl} download={'nexora-qr-' + menu.slug + '.png'} className="mt-3 block rounded-lg bg-emerald-700 px-3 py-2 text-center text-xs font-black text-white">تحميل QR للطباعة (PNG)</a></div>}<button type="button" onClick={() => navigator.clipboard.writeText(publicUrl)} className="mt-3 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-700">نسخ رابط المنيو</button><Link href="/orders" className="mt-3 block rounded-lg bg-slate-950 px-3 py-2 text-center text-xs font-black text-white">فتح طلبات المطعم</Link></div>}
                     </section>
 
                     <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
                         <h2 className="text-lg font-black">إعدادات المنيو</h2>
-                        <Link href={`/menus/${menu.id}/import`} className="mt-3 block rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-center text-sm font-black text-amber-800">استيراد منيو جاهز من CSV</Link>
+                        <Link href={`${menuBasePath}/import`} className="mt-3 block rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-center text-sm font-black text-amber-800">استيراد الصور أو ملف CSV — اختصار تجهيز المنيو</Link>
                         <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-3">
                             <p className="mb-3 text-sm font-black">معرض القوالب — اختار وشوف المعاينة فورًا</p>
                             <div className="grid grid-cols-2 gap-2">
@@ -727,22 +882,31 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
                         </form>
                     </section>
 
-                    <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+                    <section id="menu-content-studio" className="order-first scroll-mt-24 rounded-[2rem] border border-slate-200 bg-white p-5 pb-24 shadow-sm lg:pb-5">
                         <div className="flex items-center justify-between">
                             <div>
-                                <span className="text-xs font-bold text-amber-600">CATEGORY BUILDER</span>
-                                <h2 className="mt-1 text-lg font-black">أقسام المنيو</h2>
+                                <span className="text-xs font-bold tracking-[.14em] text-amber-600">MENU CONTENT STUDIO</span>
+                                <h2 className="mt-1 text-lg font-black">إدارة المنتجات والأقسام</h2>
                             </div>
                             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{menu.categories.length}</span>
                         </div>
 
-                        <form onSubmit={addCategory} className="mt-4 space-y-2">
+                        {contentTab === 'categories' && <form onSubmit={addCategory} className="mt-4 space-y-2 rounded-2xl border border-amber-100 bg-amber-50/50 p-3">
                             <input value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="اسم القسم" maxLength={120} required className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-amber-500" />
                             <textarea value={categoryDescription} onChange={(e) => setCategoryDescription(e.target.value)} placeholder="وصف اختياري" maxLength={1000} rows={2} className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-amber-500" />
                             <button type="submit" className="w-full rounded-xl bg-amber-500 px-4 py-2.5 font-black text-white">+ إضافة قسم</button>
-                        </form>
+                        </form>}
 
-                        <div className="mt-5 space-y-2">
+                        <div className="mt-5 grid grid-cols-2 gap-1.5 rounded-2xl bg-slate-100 p-1.5" role="tablist" aria-label="إدارة محتويات المنيو">
+                            <button type="button" role="tab" aria-selected={contentTab === 'products'} onClick={() => setContentTab('products')} className={'rounded-xl px-3 py-3 text-sm font-black transition ' + (contentTab === 'products' ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900')}>
+                                المنتجات <span className="mr-1 text-[10px] opacity-70">{productStats.total.toLocaleString('ar-EG')}</span>
+                            </button>
+                            <button type="button" role="tab" aria-selected={contentTab === 'categories'} onClick={() => setContentTab('categories')} className={'rounded-xl px-3 py-3 text-sm font-black transition ' + (contentTab === 'categories' ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900')}>
+                                الأقسام <span className="mr-1 text-[10px] opacity-70">{menu.categories.length.toLocaleString('ar-EG')}</span>
+                            </button>
+                        </div>
+
+                        {contentTab === 'categories' && <div className="mt-4 space-y-2">
                             {menu.categories.map((category, index) => (
                                 <div key={category.id} draggable onDragStart={(e) => beginDrag(e, 'category', category.id)} onDragOver={(e) => allowDrop(e, 'category', category.id)} onDrop={(e) => { e.preventDefault(); reorderCategoriesByDrop(category.id); }} onDragEnd={finishDrag} className={'rounded-2xl border p-3 cursor-grab active:cursor-grabbing ' + (dragOver?.type === 'category' && dragOver.id === category.id ? 'ring-2 ring-amber-400 ' : '') + (category.is_active ? 'border-slate-200 bg-slate-50' : 'border-dashed border-slate-300 bg-slate-100 opacity-70')}>
                                     {editingId === category.id ? (
@@ -776,58 +940,84 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
                                     )}
                                 </div>
                             ))}
-                            {menu.categories.map((category) => (
-                                <div key={'products-' + category.id} className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-xs font-black text-slate-500">PRODUCTS · {category.name}</span>
-                                        <button type="button" onClick={() => setProductCategoryId(productCategoryId === category.id ? null : category.id)} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white">
-                                            {productCategoryId === category.id ? 'إغلاق' : '+ منتج'}
-                                        </button>
+                        </div>}
+
+                        {contentTab === 'products' && <div className="mt-4 space-y-3">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
+                                <label className="relative block">
+                                    <span className="sr-only">البحث عن منتج</span>
+                                    <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-400">⌕</span>
+                                    <input type="search" value={productSearch} onChange={event => setProductSearch(event.target.value)} placeholder="ابحث باسم المنتج أو الوصف…" className="w-full rounded-xl border border-slate-200 bg-white py-3 pr-10 pl-3 text-sm outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100" />
+                                </label>
+                                <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="فلترة المنتجات">
+                                    {([
+                                        { key: 'all', label: 'الكل', count: productStats.total },
+                                        { key: 'available', label: 'متاح', count: productStats.available },
+                                        { key: 'hidden', label: 'مخفي', count: productStats.total - productStats.available },
+                                        { key: 'featured', label: 'مميز', count: productStats.featured },
+                                        { key: 'missing-image', label: 'بدون صورة', count: productStats.missingImage },
+                                    ] as const).map(filter => <button key={filter.key} type="button" onClick={() => setProductStatusFilter(filter.key)} aria-pressed={productStatusFilter === filter.key} className={'rounded-full border px-3 py-2 text-[11px] font-black transition ' + (productStatusFilter === filter.key ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400')}>
+                                        {filter.label} <span className="mr-1 opacity-70">{filter.count.toLocaleString('ar-EG')}</span>
+                                    </button>)}
+                                </div>
+                                <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-xs">
+                                    <span className="text-slate-500">النتائج المطابقة</span>
+                            <span className="font-black text-slate-900">{visibleProducts.length.toLocaleString('ar-EG')} منتج</span>
+                                </div>
+                            </div>
+                            <section className="mt-4 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                                <div className="border-b border-slate-100 bg-gradient-to-l from-slate-50 via-white to-white p-4 sm:p-5">
+                                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                                        <div>
+                                            <p className="text-[10px] font-black tracking-[.2em] text-amber-600">PRODUCT CATALOG</p>
+                                            <h3 className="mt-1 text-xl font-black">كتالوج المنتجات</h3>
+                                            <p className="mt-1 text-xs text-slate-500">كل منتجات البراند في مساحة واحدة — صور، أسعار، حالة البيع والتعديل السريع.</p>
+                                        </div>
+                                        <div className="flex flex-col gap-2 sm:flex-row">
+                                            <label className="min-w-0 sm:min-w-52">
+                                                <span className="sr-only">فلترة المنتجات حسب القسم</span>
+                                                <select value={productCategoryFilter} onChange={event => setProductCategoryFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100">
+                                                    <option value="all">كل الأقسام</option>
+                                                    {menu.categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                                                </select>
+                                            </label>
+                                            <button type="button" disabled={menu.categories.length === 0} onClick={() => { if (showProductForm) closeProductForm(); else { setProductCategoryId(menu.categories[0]?.id ?? null); setShowProductForm(true); setProductImageError(''); } }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
+                                                <span className="text-lg">＋</span>{showProductForm ? 'إغلاق إضافة منتج' : 'إضافة منتج جديد'}
+                                            </button>
+                                        </div>
                                     </div>
-                                    {productCategoryId === category.id && (
-                                        <form onSubmit={(e) => addProduct(e, category.id)} className="mt-3 space-y-2">
-                                            <input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="اسم المنتج" maxLength={160} required className="w-full rounded-lg border px-3 py-2" />
-                                            <textarea value={productDescription} onChange={(e) => setProductDescription(e.target.value)} placeholder="الوصف" maxLength={2000} rows={2} className="w-full rounded-lg border px-3 py-2" />
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <input value={productPrice} onChange={(e) => setProductPrice(e.target.value)} type="number" min="0" step="0.01" placeholder="السعر" required className="rounded-lg border px-3 py-2" />
-                                                <input value={productImage} onChange={(e) => setProductImage(e.target.value)} placeholder="رابط الصورة (اختياري)" className="rounded-lg border px-3 py-2" />
-                                            </div>
-                                            <div
-                                                onDragOver={(e) => e.preventDefault()}
-                                                onDrop={handleNewProductImageDrop}
-                                                className="overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50"
-                                            >
-                                                <div className="flex items-center gap-3 p-3">
-                                                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-200">
-                                                        {productImagePreview ? (
-                                                            <img src={productImagePreview} alt="" className="h-full w-full object-cover" />
-                                                        ) : productImage.trim() ? (
-                                                            <img src={productImage.startsWith('http') || productImage.startsWith('/') ? productImage : '/storage/' + productImage} alt="" className="h-full w-full object-cover" />
-                                                        ) : (
-                                                            <div className="flex h-full items-center justify-center text-2xl">🍽️</div>
-                                                        )}
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-xs font-black">صورة المنتج</p>
-                                                        <p className="mt-1 text-[10px] text-slate-400">اسحب الصورة هنا أو اختار ملف · JPG / PNG / WebP · حتى 5MB</p>
-                                                        <label className="mt-2 inline-flex cursor-pointer rounded-lg bg-slate-900 px-2.5 py-1.5 text-[10px] font-black text-white">
-                                                            {productImageFile ? 'تغيير الصورة' : 'اختيار صورة'}
-                                                            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleNewProductImageInput} />
-                                                        </label>
-                                                        {productImageFile && (
-                                                            <button type="button" onClick={clearNewProductImage} className="mr-2 rounded-lg border border-red-200 px-2.5 py-1.5 text-[10px] font-bold text-red-600">مسح</button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={productFeatured} onChange={(e) => setProductFeatured(e.target.checked)} /> مميز</label>
-                                            <button type="submit" className="w-full rounded-lg bg-amber-500 px-3 py-2 text-xs font-black text-white">إضافة المنتج</button>
-                                        </form>
-                                    )}
-                                    <div className="mt-3 space-y-2">
-                                        {category.products.map((product, index) => (
-                                            <React.Fragment key={product.id}>
-                                            <div draggable onDragStart={(e) => beginDrag(e, 'product', product.id, category.id)} onDragOver={(e) => allowDrop(e, 'product', product.id)} onDrop={(e) => { e.preventDefault(); reorderProductsByDrop(category, product.id); }} onDragEnd={finishDrag} className={'rounded-xl bg-slate-50 p-3 cursor-grab active:cursor-grabbing ' + (dragOver?.type === 'product' && dragOver.id === product.id ? 'ring-2 ring-amber-400 ' : '')}>
+                                </div>
+                                {showProductForm && <form onSubmit={event => { if (productCategoryId) addProduct(event, productCategoryId); else event.preventDefault(); }} className="grid gap-4 border-b border-amber-100 bg-amber-50/40 p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_18rem]">
+                                    {productImageError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 xl:col-span-3">{productImageError}</p>}
+                                    <div className="space-y-3">
+                                        <label className="block text-xs font-black">اسم المنتج<input value={productName} onChange={event => setProductName(event.target.value)} placeholder="مثال: Classic Burger" maxLength={160} required className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-normal outline-none focus:border-amber-400" /></label>
+                                        <label className="block text-xs font-black">القسم<select value={productCategoryId ?? ''} onChange={event => setProductCategoryId(event.target.value ? Number(event.target.value) : null)} required className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-normal"><option value="" disabled>اختار القسم</option>{menu.categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+                                        <label className="block text-xs font-black">الوصف<textarea value={productDescription} onChange={event => setProductDescription(event.target.value)} placeholder="وصف مختصر يوضح المنتج" maxLength={2000} rows={3} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-normal" /></label>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="block text-xs font-black">السعر (ج.م)<input value={productPrice} onChange={event => setProductPrice(event.target.value)} type="number" min="0" step="0.01" placeholder="0.00" required className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-normal" /></label>
+                                        <label className="block text-xs font-black">رابط الصورة (اختياري)<input value={productImage} onChange={event => setProductImage(event.target.value)} placeholder="https://…" className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-normal" /></label>
+                                        <label onDragOver={event => event.preventDefault()} onDrop={handleNewProductImageDrop} className="group relative flex min-h-36 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-white text-center transition hover:border-amber-400 hover:bg-amber-50/50">
+                                            {productImagePreview || productImage.trim() ? <img src={productImagePreview || (productImage.startsWith('http') || productImage.startsWith('/') ? productImage : '/storage/' + productImage)} alt="معاينة صورة المنتج" className="absolute inset-0 h-full w-full object-cover" /> : <><span className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-100 text-2xl">↥</span><span className="mt-2 text-sm font-black">ارفع صورة المنتج</span><span className="mt-1 text-[10px] text-slate-400">اسحب الصورة هنا أو اضغط للاختيار</span></>}
+                                            <span className="absolute bottom-2 right-2 rounded-lg bg-slate-950/90 px-3 py-2 text-[10px] font-black text-white">{productImageFile ? 'تغيير الصورة' : 'اختيار صورة'}</span>
+                                            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleNewProductImageInput} />
+                                        </label>
+                                        {productUploadProgress !== null && <div className="rounded-xl border border-amber-200 bg-white p-3" aria-live="polite">
+                                            <div className="mb-2 flex items-center justify-between gap-2 text-xs"><span className="font-black text-slate-700">جاري رفع صورة المنتج</span><span className="font-black tabular-nums text-amber-700">{productUploadProgress}%</span></div>
+                                            <div className="h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="تقدم رفع صورة المنتج" aria-valuemin={0} aria-valuemax={100} aria-valuenow={productUploadProgress}><div className="h-full rounded-full bg-amber-500 transition-[width] duration-150" style={{ width: `${productUploadProgress}%` }} /></div>
+                                        </div>}
+                                        <label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={productFeatured} onChange={event => setProductFeatured(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500" />إضافة إلى المنتجات المميزة ⭐</label>
+                                    </div>
+                                    <div className="flex flex-col justify-end gap-2 xl:pb-1">
+                                        <div className="rounded-2xl border border-amber-100 bg-white p-4"><p className="text-xs font-black text-slate-800">نصيحة للصور</p><p className="mt-1 text-xs leading-6 text-slate-500">استخدم صورة واضحة مربعة أو أفقية بإضاءة جيدة. الصيغ المقبولة JPG وPNG وWebP، حتى 5MB.</p></div>
+                                        <button type="submit" disabled={isSavingProduct || !productCategoryId || !productName.trim() || !productPrice} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-black text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50">{isSavingProduct && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />}{isSavingProduct ? productImageFile ? `جاري الحفظ والرفع ${productUploadProgress ?? 0}%` : 'جاري حفظ المنتج…' : 'حفظ وإضافة المنتج'}</button>
+                                        <button type="button" disabled={isSavingProduct} onClick={closeProductForm} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">إلغاء</button>
+                                    </div>
+                                </form>}
+                                <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-3 2xl:grid-cols-4">
+                                    {visibleProducts.map(({ category, product, index }) => (
+                                            <article key={product.id} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg">
+                                            <div draggable onDragStart={(e) => beginDrag(e, 'product', product.id, category.id)} onDragOver={(e) => allowDrop(e, 'product', product.id)} onDrop={(e) => { e.preventDefault(); reorderProductsByDrop(category, product.id); }} onDragEnd={finishDrag} className={'flex flex-1 flex-col cursor-grab active:cursor-grabbing ' + (dragOver?.type === 'product' && dragOver.id === product.id ? 'ring-2 ring-inset ring-amber-400 ' : '')}>
                                                 {editingProductId === product.id ? (
                                                     <form onSubmit={(e) => saveProduct(e, category.id, product.id)} className="space-y-3">
                                                         <div className="flex items-start gap-3">
@@ -873,40 +1063,60 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
                                                         </div>
                                                     </form>
                                                 ) : (
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center gap-2">
-                                                            {product.image_path ? (
-                                                                <img src={product.image_path.startsWith('http') || product.image_path.startsWith('/') ? product.image_path : '/storage/' + product.image_path} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
-                                                            ) : (
-                                                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-lg">🍽️</div>
-                                                            )}
-                                                            <div className="min-w-0 flex-1">
-                                                                <span className="mb-1 inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-black text-slate-500">⠿ اسحب المنتج</span>
-                                                                <p className="truncate text-sm font-black">{product.name}</p>
-                                                                <p className="text-xs text-slate-500">{Number(product.price).toFixed(2)} ج.م · {product.is_available ? 'متاح' : 'مخفي'}{product.is_featured ? ' · ⭐ مميز' : ''}</p>
+                                                    <div className="flex h-full flex-col">
+                                                        <div className="group/image relative h-44 overflow-hidden bg-slate-100 sm:h-48">
+                                                            {(imageUploadPreviews[product.id] || product.image_path) ? <img src={imageUploadPreviews[product.id] ?? (product.image_path!.startsWith('http') || product.image_path!.startsWith('/') || product.image_path!.startsWith('blob:') || product.image_path!.startsWith('data:') ? product.image_path! : '/storage/' + product.image_path)} alt={product.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 group-hover/image:scale-105" /> : <div className="flex h-full flex-col items-center justify-center bg-[radial-gradient(circle_at_30%_20%,#fff_0%,#f1f5f9_62%,#e2e8f0_100%)] text-slate-400"><span className="grid h-14 w-14 place-items-center rounded-2xl border border-white bg-white/80 text-3xl shadow-sm">▧</span><span className="mt-2 text-xs font-black">أضف صورة المنتج</span><span className="mt-1 text-[10px]">الصورة هتظهر هنا</span></div>}
+                                                            <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 bg-gradient-to-b from-black/45 to-transparent p-3">
+                                                                <span className={'rounded-full px-2.5 py-1 text-[10px] font-black backdrop-blur ' + (product.is_available ? 'bg-emerald-400/95 text-emerald-950' : 'bg-white/90 text-slate-600')}>{product.is_available ? '● متاح للبيع' : '○ مخفي'}</span>
+                                                                {product.is_featured && <span className="rounded-full bg-amber-300 px-2.5 py-1 text-[10px] font-black text-amber-950">★ مميز</span>}
                                                             </div>
-                                                            <button type="button" disabled={index === 0} onClick={() => moveProduct(category, index, -1)} className="rounded border px-1.5 text-xs disabled:opacity-30">↑</button>
-                                                            <button type="button" disabled={index === category.products.length - 1} onClick={() => moveProduct(category, index, 1)} className="rounded border px-1.5 text-xs disabled:opacity-30">↓</button>
-                                                            <button type="button" onClick={() => startEditingProduct(product)} className="rounded border px-2 py-1 text-xs">تعديل</button>
-                                                            <button type="button" onClick={() => toggleProduct(category, product)} className="rounded border px-2 py-1 text-xs">{product.is_available ? 'إخفاء' : 'تفعيل'}</button>
-                                                            <button type="button" onClick={() => deleteProduct(category, product)} className="rounded border border-red-200 px-2 py-1 text-xs text-red-600">حذف</button>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <label className="cursor-pointer rounded-lg border border-dashed border-slate-300 px-2 py-1 text-[10px] font-bold hover:bg-white">
-                                                                {product.image_path ? 'تغيير الصورة' : 'رفع صورة'}
-                                                                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadProductImage(file, category.id, product.id); e.target.value = ''; }} />
+                                                            <label onDragOver={event => event.preventDefault()} onDrop={event => handleProductImageDrop(event, category.id, product.id)} className="absolute bottom-3 left-3 inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-white/70 bg-white/95 px-3 py-2 text-[11px] font-black text-slate-800 shadow-lg backdrop-blur transition hover:bg-white">
+                                                                <span aria-hidden="true">{imageUploadProgress[product.id] !== undefined ? '◌' : '↥'}</span>{imageUploadProgress[product.id] !== undefined ? `جاري الرفع ${imageUploadProgress[product.id]}%` : product.image_path ? 'تغيير الصورة' : 'رفع صورة'}
+                                                                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={imageUploadProgress[product.id] !== undefined} className="sr-only" onChange={event => { const file = event.target.files?.[0]; if (file) uploadProductImage(file, category.id, product.id); event.target.value = ''; }} />
                                                             </label>
-                                                            {product.image_path && <button type="button" onClick={() => removeProductImage(category.id, product.id)} className="rounded-lg border border-red-200 px-2 py-1 text-[10px] font-bold text-red-600">حذف الصورة</button>}
-                                                            <span className="text-[10px] text-slate-400">JPG / PNG / WebP · حتى 5MB</span>
+                                                            {imageUploadProgress[product.id] !== undefined && <div className="absolute inset-x-3 bottom-14 rounded-xl border border-white/20 bg-slate-950/85 p-3 text-white shadow-xl backdrop-blur" aria-live="polite">
+                                                                <div className="mb-2 flex items-center justify-between gap-2 text-[10px]"><span className="font-black">جاري حفظ الصورة</span><span className="tabular-nums">{imageUploadProgress[product.id]}%</span></div>
+                                                                <div className="h-1.5 overflow-hidden rounded-full bg-white/20" role="progressbar" aria-label={'تقدم رفع صورة ' + product.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={imageUploadProgress[product.id]}><div className="h-full rounded-full bg-amber-400 transition-[width] duration-150" style={{ width: `${imageUploadProgress[product.id]}%` }} /></div>
+                                                            </div>}
+                                                            <span className="absolute bottom-3 right-3 rounded-xl bg-slate-950/75 px-2.5 py-2 text-[9px] font-bold text-white backdrop-blur">{category.name}</span>
+                                                        </div>
+                                                        <div className="flex flex-1 flex-col p-4">
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-[10px] font-black tracking-wide text-slate-400">{category.name}</p>
+                                                                    <h4 className="mt-1 line-clamp-2 text-base font-black leading-6 text-slate-900">{product.name}</h4>
+                                                                    {product.description && <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-500">{product.description}</p>}
+                                                                </div>
+                                                                <div className="shrink-0 rounded-xl bg-amber-50 px-3 py-2 text-left">
+                                                                    <span className="block text-[9px] font-bold text-amber-700">السعر</span>
+                                                                    <strong className="mt-0.5 block whitespace-nowrap text-sm font-black text-slate-950">{Number(product.price).toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} <span className="text-[10px]">ج.م</span></strong>
+                                                                </div>
+                                                            </div>
+                                                            <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+                                                                <div className="flex overflow-hidden rounded-lg border border-slate-200 bg-white">
+                                                                    <button type="button" aria-label="نقل المنتج لأعلى" title="نقل لأعلى" disabled={index === 0} onClick={() => moveProduct(category, index, -1)} className="px-2.5 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-25">↑</button>
+                                                                    <span className="w-px bg-slate-200" />
+                                                                    <button type="button" aria-label="نقل المنتج لأسفل" title="نقل لأسفل" disabled={index === category.products.length - 1} onClick={() => moveProduct(category, index, 1)} className="px-2.5 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-25">↓</button>
+                                                                </div>
+                                                                <button type="button" onClick={() => startEditingProduct(product)} className="flex-1 rounded-lg bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:bg-slate-800">تعديل</button>
+                                                                <button type="button" onClick={() => toggleProduct(category, product)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50">{product.is_available ? 'إخفاء' : 'تفعيل'}</button>
+                                                                <button type="button" aria-label={'حذف ' + product.name} onClick={() => deleteProduct(category, product)} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-black text-rose-600 transition hover:bg-rose-50">حذف</button>
+                                                            </div>
+                                                            {product.image_path && <button type="button" onClick={() => removeProductImage(category.id, product.id)} className="mt-2 self-start text-[10px] font-bold text-rose-600 transition hover:text-rose-700">حذف الصورة</button>}
+                                                            {imageUploadErrors[product.id] && <p role="alert" className="mt-2 text-[10px] font-bold text-rose-600">{imageUploadErrors[product.id]}</p>}
                                                         </div>
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="mt-2 rounded-xl border border-slate-200 bg-white p-2">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[11px] font-black text-slate-500">VARIANTS · {product.variants?.length ?? 0}</span>
-                                                    <button type="button" onClick={() => setVariantProductId(variantProductId === product.id ? null : product.id)} className="rounded-lg border px-2 py-1 text-[11px] font-bold">{variantProductId === product.id ? 'إغلاق' : '+ Variant'}</button>
-                                                </div>
+                                            <details open={expandedVariantsProductId === product.id} onToggle={event => { const isOpen = event.currentTarget.open; setExpandedVariantsProductId(current => isOpen ? product.id : current === product.id ? null : current); if (!isOpen) setVariantProductId(current => current === product.id ? null : current); }} className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                                                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 transition hover:bg-slate-50">
+                                                    <span className="text-xs font-black text-slate-800">المقاسات والأحجام <span className="mr-1 text-[10px] font-bold text-slate-400">{product.variants?.length ?? 0} اختيار</span></span>
+                                                    <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[10px] font-black text-slate-600">إدارة الخيارات ↓</span>
+                                                </summary>
+                                                {expandedVariantsProductId === product.id && <div className="border-t border-slate-100 p-3">
+                                                    <div className="mb-3 flex justify-end">
+                                                        <button type="button" onClick={() => setVariantProductId(variantProductId === product.id ? null : product.id)} className="rounded-lg bg-slate-950 px-3 py-2 text-[11px] font-black text-white">{variantProductId === product.id ? 'إغلاق النموذج' : '+ إضافة اختيار'}</button>
+                                                    </div>
                                                 {variantProductId === product.id && (
                                                     <form onSubmit={(e) => addVariant(e, category.id, product.id)} className="mt-2 space-y-2">
                                                         <input value={variantName} onChange={(e) => setVariantName(e.target.value)} placeholder="مثال: Large / Extra Cheese" maxLength={120} required className="w-full rounded-lg border px-2 py-1.5 text-xs" />
@@ -949,12 +1159,17 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
                                                     ))}
                                                     {(product.variants ?? []).length === 0 && <p className="py-1 text-center text-[10px] text-slate-400">مفيش Variants.</p>}
                                                 </div>
-                                            </div>
-                                            <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50/40 p-2">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[11px] font-black text-emerald-700">MODIFIERS · {product.modifiers?.length ?? 0}</span>
-                                                    <button type="button" onClick={() => setModifierProductId(modifierProductId === product.id ? null : product.id)} className="rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[11px] font-bold">{modifierProductId === product.id ? 'إغلاق' : '+ Modifier'}</button>
-                                                </div>
+                                                </div>}
+                                            </details>
+                                            <details open={expandedModifiersProductId === product.id} onToggle={event => { const isOpen = event.currentTarget.open; setExpandedModifiersProductId(current => isOpen ? product.id : current === product.id ? null : current); if (!isOpen) setModifierProductId(current => current === product.id ? null : current); }} className="mt-2 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50/40">
+                                                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 transition hover:bg-emerald-50">
+                                                    <span className="text-xs font-black text-emerald-800">الإضافات والاختيارات <span className="mr-1 text-[10px] font-bold text-emerald-700/60">{product.modifiers?.length ?? 0} إضافة</span></span>
+                                                    <span className="rounded-lg bg-white px-2.5 py-1.5 text-[10px] font-black text-emerald-800">إدارة الإضافات ↓</span>
+                                                </summary>
+                                                {expandedModifiersProductId === product.id && <div className="border-t border-emerald-200 p-3">
+                                                    <div className="mb-3 flex justify-end">
+                                                        <button type="button" onClick={() => setModifierProductId(modifierProductId === product.id ? null : product.id)} className="rounded-lg bg-emerald-700 px-3 py-2 text-[11px] font-black text-white">{modifierProductId === product.id ? 'إغلاق النموذج' : '+ إضافة Modifier'}</button>
+                                                    </div>
                                                 {modifierProductId === product.id && (
                                                     <form onSubmit={(e) => addModifier(e, category.id, product.id)} className="mt-2 space-y-2">
                                                         <input value={modifierName} onChange={(e) => setModifierName(e.target.value)} placeholder="مثال: Extra Cheese" maxLength={120} required className="w-full rounded-lg border px-2 py-1.5 text-xs" />
@@ -995,15 +1210,19 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
                                                     ))}
                                                     {(product.modifiers ?? []).length === 0 && <p className="py-1 text-center text-[10px] text-slate-400">مفيش Modifiers.</p>}
                                                 </div>
-                                            </div>
-                                            </React.Fragment>
+                                                </div>}
+                                            </details>
+                                            </article>
                                         ))}
-                                        {category.products.length === 0 && <p className="py-2 text-center text-xs text-slate-400">مفيش منتجات في القسم.</p>}
-                                    </div>
+                                    {visibleProducts.length === 0 && <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+                                        <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white text-2xl text-slate-400 shadow-sm">⌕</span>
+                                        <p className="mt-3 font-black">{menu.categories.length === 0 ? 'ابدأ بإضافة أول قسم للمنيو' : 'مفيش منتجات مطابقة'}</p>
+                                        <p className="mt-1 text-xs leading-6 text-slate-500">{menu.categories.length === 0 ? 'افتح تبويب الأقسام وأنشئ قسمًا، وبعدها أضف المنتجات والصور.' : 'غيّر البحث أو الفلاتر لعرض نتائج أخرى.'}</p>
+                                        {menu.categories.length > 0 && <button type="button" onClick={() => { setProductSearch(''); setProductStatusFilter('all'); setProductCategoryFilter('all'); }} className="mt-3 rounded-lg bg-slate-950 px-4 py-2 text-xs font-black text-white">عرض كل المنتجات</button>}
+                                    </div>}
                                 </div>
-                            ))}
-                            {menu.categories.length === 0 && <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">لسه مفيش أقسام. أضف أول قسم فوق.</p>}
-                        </div>
+                            </section>
+                        </div>}
                     </section>
                 </aside>
 
@@ -1050,7 +1269,7 @@ export default function MenuBuilder({ menu, template, templates, errors, flash, 
                                 <div className={previewDevice === 'mobile' ? 'overflow-hidden rounded-[2.5rem] border-[8px] border-slate-900 bg-black shadow-2xl' : 'overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-2xl'}>
                                     {previewDevice === 'mobile' && <div className="flex h-7 items-center justify-center bg-slate-900"><div className="h-1.5 w-20 rounded-full bg-white/20" /></div>}
                                     <div className={previewDevice === 'mobile' ? 'max-h-[720px] overflow-y-auto' : 'max-h-[760px] overflow-y-auto'}>
-                                        <TemplateRenderer menu={previewMenu} restaurantName="NEXORA Preview" preview previewCategoryId={previewCategoryId} />
+                                        <TemplateRenderer menu={previewMenu} restaurantName={restaurantName ?? 'NEXORA'} preview previewCategoryId={previewCategoryId} />
                                     </div>
                                 </div>
                             </div>

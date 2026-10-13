@@ -34,7 +34,7 @@ class MenuCategoryController extends Controller
             'is_active' => $data['is_active'] ?? true,
         ]);
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function update(Request $request, int $menu, int $category): RedirectResponse
@@ -61,7 +61,7 @@ class MenuCategoryController extends Controller
             'is_active' => $data['is_active'] ?? $categoryModel->is_active,
         ]);
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function destroy(int $menu, int $category): RedirectResponse
@@ -71,7 +71,7 @@ class MenuCategoryController extends Controller
         $menuModel = $this->menu($menu);
         $this->category($menuModel, $category)->delete();
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function reorder(Request $request, int $menu): RedirectResponse
@@ -100,7 +100,7 @@ class MenuCategoryController extends Controller
             }
         });
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     private function menu(int $id): Menu
@@ -147,7 +147,7 @@ class MenuCategoryController extends Controller
         $restaurant = app(TenantContext::class)->restaurant();
 
         abort_unless(
-            $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
+            $user?->isPlatformOwner() || $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
             403
         );
     }

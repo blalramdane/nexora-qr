@@ -21,6 +21,8 @@ class DashboardController extends Controller
             ->get(['id', 'name', 'slug', 'template_id', 'is_published', 'updated_at']);
 
         return Inertia::render('Dashboard', [
+            'canManageMenuStudio' => request()->user()?->isPlatformOwner()
+                || in_array(request()->user()?->roleIn($restaurant), ['owner', 'manager'], true),
             'restaurant' => [
                 'id' => $restaurant->id,
                 'name' => $restaurant->name,

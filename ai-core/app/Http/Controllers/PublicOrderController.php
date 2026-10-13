@@ -4,15 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Menu;
 use App\Models\Order;
-use App\Models\OrderStatusHistory;
 use App\Models\Coupon;
 use App\Models\Restaurant;
-use App\Services\SyncRestaurantToLocalDirectory;
+use App\Models\RestaurantTable;
+use App\Jobs\SendRestaurantOrderWhatsAppNotification;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 class PublicOrderController extends Controller
@@ -39,7 +40,8 @@ class PublicOrderController extends Controller
         $data = $request->validate([
             'customer_name' => ['required', 'string', 'max:120'],
             'customer_phone' => ['required', 'string', 'max:30'],
-            'fulfillment_type' => ['required', 'in:pickup,delivery'],
+            'fulfillment_type' => ['required', 'in:pickup,delivery,dine_in'],
+            'table_token' => ['nullable', 'string', 'max:128'],
             'delivery_address' => ['nullable', 'string', 'max:1000'],
             'delivery_area' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -66,6 +68,18 @@ class PublicOrderController extends Controller
         app(TenantContext::class)->set($restaurant);
         $menu = Menu::query()->where('restaurant_id', $restaurant->id)->where('slug', $menuSlug)->where('is_published', true)->firstOrFail();
 
+        $table = null;
+        $tableToken = trim((string) ($data['table_token'] ?? ''));
+        if ($data['fulfillment_type'] === 'dine_in') {
+            abort_unless($tableToken !== '', 422, 'امسح QR الترابيزة الصحيح قبل إرسال طلب داخل المطعم.');
+            $table = RestaurantTable::query()->where('restaurant_id', $restaurant->id)
+                ->where('qr_token_hash', hash('sha256', $tableToken))
+                ->where('is_active', true)->first();
+            abort_unless($table, 422, 'رمز الترابيزة غير صالح أو تم إيقافه. امسح QR مرة أخرى.');
+        } else {
+            abort_if($tableToken !== '', 422, 'نوع الطلب لا يتطابق مع رمز الترابيزة.');
+        }
+
         $requestHash = hash('sha256', json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         if ($idempotencyKey !== '') {
             $existing = Order::query()->where('restaurant_id', $restaurant->id)->where('idempotency_key', $idempotencyKey)->first();
@@ -76,7 +90,8 @@ class PublicOrderController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($data, $restaurant, $menu, $idempotencyKey, $requestHash) {
+        try {
+        $order = DB::transaction(function () use ($data, $restaurant, $menu, $table, $idempotencyKey, $requestHash) {
             $lines = [];
             $subtotal = 0;
             $itemsCount = 0;
@@ -93,6 +108,8 @@ class PublicOrderController extends Controller
 
                 $unitPrice = (float) $product->price;
                 $variantName = null;
+                $activeVariants = $product->variants()->where('is_active', true)->get();
+                abort_unless($activeVariants->isEmpty() || !empty($requested['variant_id']), 422, 'من فضلك اختار الحجم أو النوع المطلوب للمنتج.');
                 if (!empty($requested['variant_id'])) {
                     $variant = $product->variants()->where('is_active', true)->findOrFail($requested['variant_id']);
                     $unitPrice = $variant->price !== null ? (float) $variant->price : $unitPrice + (float) $variant->price_delta;
@@ -119,6 +136,7 @@ class PublicOrderController extends Controller
                     'price' => (float) $modifier->price_delta,
                 ])->values()->all();
                 $unitPrice += array_sum(array_column($modifierSnapshots, 'price'));
+                abort_unless(is_finite($unitPrice) && $unitPrice >= 0, 422, 'السعر النهائي للصنف لا يمكن أن يكون أقل من صفر. راجع السعر والأحجام والإضافات.');
 
                 $quantity = (int) $requested['quantity'];
                 $lineTotal = round($unitPrice * $quantity, 2);
@@ -144,6 +162,8 @@ class PublicOrderController extends Controller
             $order = Order::create([
                 'restaurant_id' => $restaurant->id,
                 'menu_id' => $menu->id,
+                'restaurant_table_id' => $table?->id,
+                'restaurant_table_name' => $table?->name,
                 'source' => 'qr_menu',
                 'payment_method' => 'cash_on_delivery',
                 'payment_status' => 'unpaid',
@@ -173,20 +193,29 @@ class PublicOrderController extends Controller
                 'restaurant_id' => $restaurant->id,
                 'event_type' => 'order.created',
                 'status' => 'pending',
-                'payload' => ['order_id' => $order->id, 'order_number' => $order->order_number, 'source' => 'qr_menu', 'status' => 'new', 'total' => (float) $order->total],
+                'payload' => ['order_id' => $order->id, 'order_number' => $order->order_number, 'source' => 'qr_menu', 'status' => 'new', 'fulfillment_type' => $order->fulfillment_type, 'restaurant_table_id' => $order->restaurant_table_id, 'restaurant_table_name' => $order->restaurant_table_name, 'total' => (float) $order->total],
             ]);
             return [$order, $trackingToken];
         });
+        } catch (QueryException $exception) {
+            // A unique restaurant+idempotency key prevents duplicate records if
+            // two retries race before either request can read the first insert.
+            // Turn the losing request into a replay response when the payload is
+            // identical; otherwise preserve the conflict response.
+            if ($idempotencyKey === '') throw $exception;
+            $existing = Order::query()->where('restaurant_id', $restaurant->id)->where('idempotency_key', $idempotencyKey)->first();
+            if (!$existing) throw $exception;
+            abort_unless(hash_equals((string) $existing->idempotency_request_hash, $requestHash), 409, 'مفتاح الطلب مستخدم مع بيانات مختلفة. استخدم مفتاحًا جديدًا للطلب الجديد.');
+            $trackingToken = $existing->tracking_token_encrypted ? Crypt::decryptString($existing->tracking_token_encrypted) : null;
+            return $this->orderResponse($restaurant, $existing, $trackingToken, true);
+        }
 
         [$order, $trackingToken] = $order;
-        $business = app(SyncRestaurantToLocalDirectory::class)->sync($restaurant);
-        $business->activities()->create([
-            'type' => 'order_created',
-            'outcome' => 'received',
-            'channel' => 'qr_menu',
-            'notes' => 'تم استلام طلب جديد من المنيو: '.$order->order_number,
-            'occurred_at' => $order->created_at ?? now(),
-        ]);
+
+        if ($restaurant->whatsapp_order_notifications_enabled) {
+            SendRestaurantOrderWhatsAppNotification::dispatch($order->id)->onQueue('default');
+        }
+
         return $this->orderResponse($restaurant, $order, $trackingToken, false);
     }
 
@@ -194,6 +223,6 @@ class PublicOrderController extends Controller
     {
         $trackingUrl = route('public.orders.track', [$restaurant->slug, $order->order_number, $trackingToken]);
 
-        return response()->json(['message' => $replayed ? 'الطلب مسجل بالفعل؛ تم إرجاع نفس النتيجة دون إنشاء طلب جديد.' : 'تم إرسال طلبك للمطعم بنجاح.', 'replayed' => $replayed, 'order' => ['number' => $order->order_number, 'status' => $order->status, 'subtotal' => $order->subtotal, 'discount_amount' => $order->discount_amount, 'coupon_code' => $order->coupon_code, 'total' => $order->total, 'delivery_fee' => $order->delivery_fee, 'tracking_url' => $trackingUrl]], $replayed ? 200 : 201);
+        return response()->json(['message' => $replayed ? 'الطلب مسجل بالفعل؛ تم إرجاع نفس النتيجة دون إنشاء طلب جديد.' : 'تم إرسال طلبك للمطعم بنجاح.', 'replayed' => $replayed, 'order' => ['number' => $order->order_number, 'status' => $order->status, 'subtotal' => $order->subtotal, 'discount_amount' => $order->discount_amount, 'coupon_code' => $order->coupon_code, 'total' => $order->total, 'delivery_fee' => $order->delivery_fee, 'table_name' => $order->restaurant_table_name ?? $order->restaurantTable?->name, 'tracking_url' => $trackingUrl]], $replayed ? 200 : 201);
     }
 }

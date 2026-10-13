@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-10-13",
+  "purpose": "Cross-project execution queue for the NEXORA workspace. This file tracks verified handoffs, not claims of project completion.",
+  "rules": {
+    "one_active_task_per_project": true,
+    "parallelize_only_independent_read_only_work": true,
+    "preserve_existing_working_tree_changes": true,
+    "require_evidence_before_done": true,
+    "commit_push_merge_deploy_require_separate_authorization": true
+  },
+  "projects": [
+    {
+      "id": "nexora-qr",
+      "source_of_truth": ["PROJECT_SOURCE_OF_TRUTH.md", ".nexora/AGENT-PROTOCOL.md", ".nexora/execution-plan.json", ".nexora/state.json", "docs/plans/NEXORA_QR_MASTER_EXECUTION_PLAN.md"],
+      "observed_status": "active",
+      "current_step": "14",
+      "verified_through": "13",
+      "blockers": ["Reconcile the older 26-step plan state with newer uncommitted implementation before selecting a coding task."],
+      "next_task": "NQR-ORCH-001",
+      "task_file": ".nexora/tasks/NQR-ORCH-001.md"
+    },
+    {
+      "id": "nexora-distribution-os",
+      "source_of_truth": ["nexora-distribution-os/EXECUTION_MASTER_PLAN.md", "nexora-distribution-os/PROJECT_STATUS.md", "nexora-distribution-os/TASK_LOOP.md"],
+      "observed_status": "in-progress-blocked-gates",
+      "current_task": "NDX-060 financial/stock invariants; NDX-070 offline sync hardening recorded in execution notes",
+      "blockers": ["Latest working-tree MySQL 8.4 lifecycle/foreign-key CI evidence outstanding", "Financial and deletion-policy owner decisions outstanding"],
+      "next_task": "NDS-ORCH-001",
+      "task_file": ".nexora/tasks/NDS-ORCH-001.md"
+    },
+    {
+      "id": "ai-os",
+      "source_of_truth": [".nexora/AI-OS-ORCHESTRATION.md", ".nexora/WORK-QUEUE.json", ".nexora/AI-OS-EXECUTION-REPORT.schema.json", ".nexora/PROVIDER-CONTRACT.md"],
+      "observed_status": "supervised-pilot-verified",
+      "blockers": ["Independent reviewer and verifier roles remain unconfigured.", "Persistent scheduling is not yet configured."],
+      "next_task": "AIOS-RUNNER-001",
+      "task_file": ".nexora/tasks/AIOS-PROVIDER-SUPERVISED-PILOT.md"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "NQR-ORCH-001",
+      "project": "nexora-qr",
+      "title": "Reconcile execution-plan status with current implementation",
+      "status": "ready",
+      "priority": "P0",
+      "owner": "Chat On Steroids",
+      "acceptance_criteria": ["Inspect current working-tree diff and relevant public-menu/order routes", "Do not reset, stage, commit, push, merge, deploy or read credential files", "Update step states only when current verification evidence exists", "Record unresolved discrepancies and exact next task"],
+      "verification": ["git diff --check", "Relevant backend tests", "npm run build", "state/plan consistency check"],
+      "dependencies": [],
+      "task_file": ".nexora/tasks/NQR-ORCH-001.md"
+    },
+    {
+      "id": "NDS-ORCH-001",
+      "project": "nexora-distribution-os",
+      "title": "Complete current-tree gate evidence and owner-decision handoff",
+      "status": "blocked-pending-evidence",
+      "priority": "P0",
+      "owner": "Chat On Steroids + NEXORA reviewer",
+      "acceptance_criteria": ["Preserve all pre-existing modifications", "Collect current-tree CI evidence for MySQL 8.4 migrations/seed/rollback/composite tenant FKs", "Keep unresolved finance and deletion policies explicit", "Do not commit/push to trigger CI without authorization"],
+      "verification": ["MySQL 8.4 CI lifecycle", "Backend suite", "Frontend lint/build/E2E", "git diff --check"],
+      "dependencies": ["Owner policy decisions where required", "Authorized CI run or an already existing CI result for the exact current commit"],
+      "task_file": ".nexora/tasks/NDS-ORCH-001.md"
+    },
+    {
+      "id": "AIOS-PROVIDER-SUPERVISED-PILOT",
+      "project": "ai-os",
+      "title": "Validate a supervised end-to-end provider task",
+      "status": "done",
+      "priority": "P0",
+      "owner": "ChatGPT + Chat On Steroids",
+      "acceptance_criteria": ["Provider command availability is verified without printing secrets", "Run one low-risk task limited to AI OS control-plane files", "Run adapter unit tests, queue integrity, runner syntax and dry-run", "Inspect structured report and diff before marking done", "Fail closed for merge/deploy/publish/cost-bearing actions", "No dependency added unless needed and reviewed"],
+      "verification": [".nexora/provider-adapter/test_aios_provider.py", "JSON/schema checks", "Runner dry-run", "Structured report inspection"],
+      "task_file": ".nexora/tasks/AIOS-PROVIDER-SUPERVISED-PILOT.md",
+      "dependencies": [],
+      "completed_at": "2026-10-13",
+      "verification_evidence": ["Codex CLI invocation returned exit 0; report .nexora/provider-adapter/reports/50d15bd3-d573-443d-8f04-77717e8b4321.json reviewed", "8 adapter unit tests passed", "Control-plane JSON and queue/task references passed", "Runner Bash syntax and dry-run passed", "git diff --check passed"]
+    },
+    {
+      "id": "AIOS-RUNNER-001",
+      "project": "ai-os",
+      "title": "Make queue execution resumable and concurrency-safe",
+      "status": "ready",
+      "priority": "P0",
+      "owner": "Chat On Steroids + AI OS coordinator",
+      "acceptance_criteria": ["Exclusive lock prevents concurrent queue mutation", "Atomic task status transitions preserve unrelated tasks", "Provider exit 0 never marks a task done", "Deterministic tests cover lock, transitions and queue integrity"],
+      "verification": ["Adapter unit tests", "Queue/schema JSON checks", "Runner syntax and dry-run", "git diff --check"],
+      "task_file": ".nexora/tasks/AIOS-RUNNER-001.md",
+      "dependencies": ["AIOS-PROVIDER-SUPERVISED-PILOT"]
+    }
+  ]
+}

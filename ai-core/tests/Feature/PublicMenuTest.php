@@ -6,12 +6,16 @@ use App\Models\Menu;
 use App\Models\MenuCategory;
 use App\Models\Modifier;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Order;
 use App\Models\Coupon;
 use App\Models\Restaurant;
+use App\Models\RestaurantTable;
 use App\Models\Template;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PublicMenuTest extends TestCase
@@ -43,6 +47,18 @@ class PublicMenuTest extends TestCase
 
         $this->get(route('public.menu.show', [$restaurant->slug, $menu->slug]))
             ->assertNotFound();
+    }
+
+    public function test_public_menu_exposes_restaurant_whatsapp_for_the_customer_order_handoff(): void
+    {
+        [$restaurant, $menu] = $this->makeMenu();
+        $restaurant->update(['whatsapp_phone' => '+20 10 1234 5678']);
+
+        $this->get(route('public.menu.show', [$restaurant->slug, $menu->slug]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Menu/Public')
+                ->where('restaurant.whatsapp_phone', '+20 10 1234 5678'));
     }
 
     public function test_public_menu_route_cannot_leak_a_menu_from_another_restaurant(): void
@@ -252,6 +268,97 @@ class PublicMenuTest extends TestCase
             'customer_name' => 'Test Customer', 'customer_phone' => '01000000000',
             'items' => [['product_id' => $otherProduct->id, 'quantity' => 1]],
         ])->assertStatus(422);
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_customer_must_select_a_variant_when_the_product_has_active_variants(): void
+    {
+        [$restaurant, $menu] = $this->makeMenu();
+        $product = Product::query()->where('restaurant_id', $restaurant->id)->firstOrFail();
+        $variant = ProductVariant::create([
+            'restaurant_id' => $restaurant->id,
+            'product_id' => $product->id,
+            'name' => 'Large',
+            'price' => 160,
+            'price_delta' => 0,
+            'is_active' => true,
+        ]);
+        $route = route('public.orders.store', [$restaurant->slug, $menu->slug]);
+        $payload = [
+            'customer_name' => 'Variant Customer',
+            'customer_phone' => '01000000000',
+            'fulfillment_type' => 'pickup',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ];
+
+        $this->postJson($route, $payload)->assertUnprocessable();
+        $this->assertDatabaseCount('orders', 0);
+
+        $payload['items'][0]['variant_id'] = $variant->id;
+        $this->postJson($route, $payload)->assertCreated()->assertJsonPath('order.total', '160.00');
+        $this->assertDatabaseHas('order_items', ['product_id' => $product->id, 'unit_price' => 160, 'variant_name' => 'Large']);
+    }
+
+    public function test_table_qr_is_tenant_scoped_and_creates_a_dine_in_order_with_table_snapshot(): void
+    {
+        [$restaurant, $menu] = $this->makeMenu();
+        $token = Str::random(64);
+        $table = RestaurantTable::create([
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Table 07',
+            'qr_token_hash' => hash('sha256', $token),
+            'qr_token_encrypted' => Crypt::encryptString($token),
+            'is_active' => true,
+        ]);
+
+        $this->get(route('public.menu.show', [$restaurant->slug, $menu->slug]).'?table='.urlencode($token))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Menu/Public')
+                ->where('tableContext.name', 'Table 07')
+                ->where('tableContext.token', $token));
+
+        $product = Product::query()->where('restaurant_id', $restaurant->id)->firstOrFail();
+        $payload = [
+            'customer_name' => 'Table Customer',
+            'customer_phone' => '01000000000',
+            'fulfillment_type' => 'dine_in',
+            'table_token' => $token,
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ];
+
+        $this->postJson(route('public.orders.store', [$restaurant->slug, $menu->slug]), $payload, ['Idempotency-Key' => 'table-order-test-key-001'])
+            ->assertCreated()
+            ->assertJsonPath('order.table_name', 'Table 07');
+
+        $order = Order::query()->where('customer_name', 'Table Customer')->firstOrFail();
+        $this->assertSame('dine_in', $order->fulfillment_type);
+        $this->assertSame($table->id, $order->restaurant_table_id);
+        $this->assertSame('Table 07', $order->restaurant_table_name);
+
+        $table->update(['name' => 'Renamed Table']);
+        $this->assertSame('Table 07', $order->fresh()->restaurant_table_name);
+    }
+
+    public function test_dine_in_rejects_invalid_or_inactive_table_tokens(): void
+    {
+        [$restaurant, $menu] = $this->makeMenu();
+        $token = Str::random(64);
+        $table = RestaurantTable::create([
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Table 08',
+            'qr_token_hash' => hash('sha256', $token),
+            'qr_token_encrypted' => Crypt::encryptString($token),
+            'is_active' => true,
+        ]);
+        $route = route('public.orders.store', [$restaurant->slug, $menu->slug]);
+        $product = Product::query()->where('restaurant_id', $restaurant->id)->firstOrFail();
+        $payload = ['customer_name' => 'Invalid Table', 'customer_phone' => '01000000000', 'fulfillment_type' => 'dine_in', 'table_token' => 'wrong-token-value', 'items' => [['product_id' => $product->id, 'quantity' => 1]]];
+
+        $this->postJson($route, $payload)->assertUnprocessable();
+        $payload['table_token'] = $token;
+        $table->update(['is_active' => false]);
+        $this->postJson($route, $payload)->assertUnprocessable();
         $this->assertDatabaseCount('orders', 0);
     }
 

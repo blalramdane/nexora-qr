@@ -21,6 +21,33 @@ jobs:
       - name: Validate state JSON
         run: jq empty .nexora/state.json
 
+      - name: Validate AI OS control-plane JSON
+        run: |
+          jq empty .nexora/WORK-QUEUE.json
+          jq empty .nexora/AI-OS-EXECUTION-REPORT.schema.json
+          jq empty .nexora/providers/providers.json
+
+      - name: Validate task queue references
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          queue = json.loads(Path('.nexora/WORK-QUEUE.json').read_text(encoding='utf-8'))
+          projects = {item['id'] for item in queue['projects']}
+          tasks = queue['tasks']
+          missing = sorted({task['project'] for task in tasks} - projects)
+          ids = [task['id'] for task in tasks]
+          if missing:
+              raise SystemExit(f'Tasks reference unknown projects: {missing}')
+          if len(ids) != len(set(ids)):
+              raise SystemExit('Duplicate task IDs found in WORK-QUEUE.json')
+          print(f'Queue integrity passed: {len(projects)} projects, {len(tasks)} tasks')
+          PY
+
+      - name: Test AI OS provider adapter offline
+        run: python -m unittest discover -s .nexora/provider-adapter -p 'test_*.py' -v
+
       - name: Validate runner syntax
         run: bash -n scripts/nexora-run.sh
 
@@ -33,4 +60,8 @@ jobs:
           test -s .nexora/IDEAS.md
           test -s .nexora/DECISIONS.md
           test -s .nexora/RUN-LOG.md
+          test -s .nexora/AI-OS-ORCHESTRATION.md
+          test -s .nexora/WORK-QUEUE.json
+          test -s .nexora/AI-OS-EXECUTION-REPORT.schema.json
+          test -s .nexora/skills/using-ai-os-orchestration/SKILL.md
           test -s docs/plans/NEXORA_QR_MASTER_EXECUTION_PLAN.md

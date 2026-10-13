@@ -44,7 +44,7 @@ class ProductController extends Controller
             $product->update(['image_path' => $path]);
         }
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function update(Request $request, int $menu, int $category, int $product): RedirectResponse
@@ -69,7 +69,7 @@ class ProductController extends Controller
             'sort_order' => $data['sort_order'] ?? $productModel->sort_order,
         ]);
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function destroy(int $menu, int $category, int $product): RedirectResponse
@@ -80,7 +80,7 @@ class ProductController extends Controller
         $categoryModel = $this->category($menuModel, $category);
         $categoryModel->products()->whereKey($product)->firstOrFail()->delete();
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function reorder(Request $request, int $menu, int $category): RedirectResponse
@@ -110,7 +110,7 @@ class ProductController extends Controller
             }
         });
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     private function validated(Request $request): array
@@ -166,7 +166,7 @@ class ProductController extends Controller
         $restaurant = app(TenantContext::class)->restaurant();
 
         abort_unless(
-            $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
+            $user?->isPlatformOwner() || $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
             403
         );
     }

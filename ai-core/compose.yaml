@@ -1,0 +1,35 @@
+# blitz.cloud deployment parts. Configure each part's Environment tab after
+# creating the managed MariaDB database; do not put production secrets here.
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      LOG_CHANNEL: stderr
+      APP_LOCALE: ar
+      APP_FALLBACK_LOCALE: ar
+      DB_CONNECTION: mysql
+      SESSION_DRIVER: database
+      CACHE_STORE: database
+      QUEUE_CONNECTION: database
+      FILESYSTEM_DISK: public
+    expose:
+      - "80"
+
+  queue:
+    build: .
+    restart: unless-stopped
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90"]
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      LOG_CHANNEL: stderr
+      APP_LOCALE: ar
+      APP_FALLBACK_LOCALE: ar
+      DB_CONNECTION: mysql
+      SESSION_DRIVER: database
+      CACHE_STORE: database
+      QUEUE_CONNECTION: database
+      FILESYSTEM_DISK: public

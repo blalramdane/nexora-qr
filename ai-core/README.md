@@ -33,6 +33,13 @@ NEXORA QR is a mobile-first digital menu and ordering system for restaurants and
 - Node.js 20+ and npm
 - A database supported by Laravel (SQLite for local development; MySQL/MariaDB recommended for production)
 
+## Deployment package
+
+- The free-VM deployment reference is [`deploy/FREE_VM_DEPLOYMENT.md`](deploy/FREE_VM_DEPLOYMENT.md). It covers Docker, MySQL, persistent product-photo storage, the queue worker, and HTTPS through Caddy.
+- For platforms that recognize Compose services such as blitz.cloud, [`compose.yaml`](compose.yaml) declares separate web and queue parts; configure the managed database and secrets in the provider's environment settings.
+- [`deploy/.env.production.example`](deploy/.env.production.example) is a template only. On the server, copy it to `deploy/.env.production`, use two different random database passwords, set the real HTTPS domain, and keep the real file out of Git.
+- The image does not run migrations or seeders at startup. Review the target database and take a restorable backup before explicitly applying any migration.
+
 ## Local development setup
 
 Run these commands from the `ai-core` directory:

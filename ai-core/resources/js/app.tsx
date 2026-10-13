@@ -4,6 +4,17 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+    const registerServiceWorker = () => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
+            // The app remains fully usable in the browser when SW registration is unavailable.
+        });
+    };
+
+    if (document.readyState === 'complete') registerServiceWorker();
+    else window.addEventListener('load', registerServiceWorker, { once: true });
+}
+
 createInertiaApp({
     title: (title) => title ? `${title} — Nexora QR` : 'Nexora QR',
     resolve: (name) =>

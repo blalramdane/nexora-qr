@@ -1,6 +1,7 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
 
 export default function Login() {
+    const flash = (usePage().props as unknown as { flash?: { success?: string; error?: string } }).flash;
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6">
             <Head title="تسجيل الدخول" />
@@ -9,6 +10,8 @@ export default function Login() {
                     <p className="text-sm font-semibold text-slate-500">NEXORA QR</p>
                     <h1 className="mt-2 text-3xl font-bold text-slate-950">أهلاً بيك</h1>
                     <p className="mt-2 text-slate-500">ادخل لإدارة مطعمك.</p>
+                    {flash?.success && <p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm leading-6 text-emerald-900">{flash.success}</p>}
+                    {flash?.error && <p role="alert" className="mt-4 rounded-xl bg-rose-50 p-3 text-sm leading-6 text-rose-900">{flash.error}</p>}
                 </div>
 
                 <Form action="/login" method="post" className="space-y-5">
@@ -37,7 +40,10 @@ export default function Login() {
                     )}
                 </Form>
 
-                <p className="mt-6 text-center text-sm text-slate-500">
+                <p className="mt-5 text-center text-sm text-slate-500">
+                    <Link href="/forgot-password" className="font-semibold text-slate-950 underline">نسيت كلمة السر؟</Link>
+                </p>
+                <p className="mt-4 text-center text-sm text-slate-500">
                     أول مرة؟ <Link href="/register" className="font-semibold text-slate-950">أنشئ حسابك</Link>
                 </p>
                 <p className="mt-3 rounded-2xl bg-emerald-50 p-4 text-center text-sm text-emerald-950">

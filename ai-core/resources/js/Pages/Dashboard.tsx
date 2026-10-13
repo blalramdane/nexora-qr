@@ -1,5 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import PwaInstallPrompt from '../Components/PwaInstallPrompt';
 
 type Restaurant = {
     id: number;
@@ -58,18 +59,20 @@ export default function Dashboard({
     restaurant,
     stats,
     menus,
+    canManageMenuStudio = false,
 }: {
     restaurant: Restaurant;
     stats: Stats;
     menus: Menu[];
+    canManageMenuStudio?: boolean;
 }) {
     return (
         <main dir="rtl" className="min-h-screen bg-[#f6f7f9] text-slate-950">
             <Head title="لوحة التحكم" />
 
             <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center gap-3">
+                <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
+                    <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
                             N
                         </div>
@@ -79,24 +82,27 @@ export default function Dashboard({
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                         <Link
                             href="/menus"
                             className="hidden rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100 sm:block"
                         >
                             المنيوهات
                         </Link>
-                        <Link href="/orders" className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800">الطلبات</Link>
+                        {canManageMenuStudio && <Link href="/owner/menus" className="hidden rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-100 lg:block">استوديو المنيوهات</Link>}
+                        <Link href="/orders" className="rounded-xl bg-slate-950 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 sm:px-4 sm:text-sm">الطلبات</Link>
                         <Link href="/delivery-management" className="hidden rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 md:block">الدليفري</Link>
-                        <Link href="/settings/orders" className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700">إعدادات الطلبات</Link>
+                        <Link href="/settings/orders" className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold text-slate-700 sm:px-4 sm:text-sm">إعدادات الطلبات</Link>
                         <Form action="/logout" method="post">
-                            <button className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+                            <button className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 sm:px-4 sm:text-sm">
                                 خروج
                             </button>
                         </Form>
                     </div>
                 </div>
             </header>
+
+            <PwaInstallPrompt />
 
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
                 <section className="overflow-hidden rounded-[2rem] bg-slate-950 p-6 text-white shadow-xl sm:p-8">
@@ -205,6 +211,10 @@ export default function Dashboard({
                         <h2 className="mt-1 text-xl font-black">اختصارات سريعة</h2>
 
                         <div className="mt-5 space-y-3">
+                            {canManageMenuStudio && <Link href="/owner/menus" className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 transition hover:bg-emerald-100">
+                                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">✦</span>
+                                <div><p className="font-bold">استوديو إدارة المنيوهات</p><p className="mt-0.5 text-xs text-slate-600">تحكم في الأصناف والصور والأسعار والأقسام لكل مطعم عندك</p></div>
+                            </Link>}
                             <Link href="/menus" className="flex items-center gap-3 rounded-2xl bg-slate-950 p-4 text-white transition hover:bg-slate-800">
                                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">+</span>
                                 <div>

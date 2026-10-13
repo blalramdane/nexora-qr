@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
-    protected $fillable = ['restaurant_id', 'menu_id', 'source', 'source_reference', 'payment_method', 'payment_status', 'order_number', 'tracking_token_hash', 'tracking_token_encrypted', 'idempotency_key', 'idempotency_request_hash', 'customer_name', 'customer_phone', 'fulfillment_type', 'delivery_address', 'delivery_area', 'delivery_rider_id', 'delivery_status', 'delivery_notes', 'delivery_assigned_at', 'delivery_picked_up_at', 'delivered_at', 'delivery_fee', 'coupon_id', 'coupon_code', 'discount_amount', 'notes', 'status', 'items_count', 'subtotal', 'total'];
+    protected $fillable = ['restaurant_id', 'menu_id', 'restaurant_table_id', 'restaurant_table_name', 'source', 'source_reference', 'payment_method', 'payment_status', 'order_number', 'tracking_token_hash', 'tracking_token_encrypted', 'idempotency_key', 'idempotency_request_hash', 'customer_name', 'customer_phone', 'fulfillment_type', 'delivery_address', 'delivery_area', 'delivery_rider_id', 'delivery_status', 'delivery_notes', 'delivery_assigned_at', 'delivery_picked_up_at', 'delivered_at', 'delivery_fee', 'coupon_id', 'coupon_code', 'discount_amount', 'notes', 'status', 'items_count', 'subtotal', 'total'];
 
     protected function casts(): array
     {
@@ -17,6 +17,7 @@ class Order extends Model
 
     public function restaurant(): BelongsTo { return $this->belongsTo(Restaurant::class); }
     public function menu(): BelongsTo { return $this->belongsTo(Menu::class); }
+    public function restaurantTable(): BelongsTo { return $this->belongsTo(RestaurantTable::class, 'restaurant_table_id'); }
     public function items(): HasMany { return $this->hasMany(OrderItem::class); }
     public function statusHistory(): HasMany { return $this->hasMany(OrderStatusHistory::class)->oldest(); }
     public function review(): \Illuminate\Database\Eloquent\Relations\HasOne { return $this->hasOne(OrderReview::class); }

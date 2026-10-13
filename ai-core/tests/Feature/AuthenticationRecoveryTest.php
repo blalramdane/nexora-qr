@@ -4,7 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Restaurant;
 use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
 class AuthenticationRecoveryTest extends TestCase
@@ -58,5 +62,62 @@ class AuthenticationRecoveryTest extends TestCase
     {
         $this->get(route('delivery.dashboard'))
             ->assertRedirect(route('login'));
+    }
+
+    public function test_password_reset_link_can_be_used_to_set_a_new_password(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'new.owner@example.com']);
+        $this->assertSame(Password::RESET_LINK_SENT, Password::sendResetLink(['email' => $user->email]));
+        $token = null;
+        Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use (&$token): bool {
+            $token = $notification->token;
+
+            return is_string($token) && $token !== '';
+        });
+        $this->assertNotNull($token);
+
+        $this->get(route('password.reset', ['token' => $token, 'email' => $user->email]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Auth/ResetPassword')->where('email', $user->email));
+
+        $newPassword = 'NexoraTest#2026';
+        $this->post(route('password.update'), [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => $newPassword,
+            'password_confirmation' => $newPassword,
+        ])->assertRedirect(route('login'))->assertSessionHasNoErrors();
+
+        $this->assertTrue(Hash::check($newPassword, $user->fresh()->password));
+    }
+
+    public function test_forgot_password_does_not_claim_delivery_when_mail_driver_is_log(): void
+    {
+        Notification::fake();
+        config(['mail.default' => 'log']);
+        $user = User::factory()->create(['email' => 'mail-log-owner@example.com']);
+
+        $this->from(route('password.request'))
+            ->post(route('password.email'), ['email' => $user->email])
+            ->assertRedirect(route('password.request'))
+            ->assertSessionHasErrors('email');
+
+        Notification::assertNothingSent();
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
+    }
+
+    public function test_forgot_password_sends_a_reset_notification_when_mail_delivery_is_configured(): void
+    {
+        Notification::fake();
+        config(['mail.default' => 'smtp']);
+        $user = User::factory()->create(['email' => 'mail-ready-owner@example.com']);
+
+        $this->from(route('password.request'))
+            ->post(route('password.email'), ['email' => $user->email])
+            ->assertRedirect(route('password.request'))
+            ->assertSessionHas('status');
+
+        Notification::assertSentTo($user, ResetPassword::class);
     }
 }

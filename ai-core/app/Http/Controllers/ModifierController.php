@@ -24,7 +24,7 @@ class ModifierController extends Controller
             $this->modifierPayload($data, $productModel)
         ));
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function update(Request $request, int $menu, int $category, int $product, int $modifier): RedirectResponse
@@ -38,7 +38,7 @@ class ModifierController extends Controller
 
         $modifierModel->update($this->modifierPayload($data, $productModel, $modifierModel->sort_order));
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function destroy(int $menu, int $category, int $product, int $modifier): RedirectResponse
@@ -48,7 +48,7 @@ class ModifierController extends Controller
         $productModel = $this->product($menuModel, $category, $product);
         $productModel->modifiers()->whereKey($modifier)->firstOrFail()->delete();
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function reorder(Request $request, int $menu, int $category, int $product): RedirectResponse
@@ -77,7 +77,7 @@ class ModifierController extends Controller
             }
         });
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     private function validated(Request $request): array
@@ -145,7 +145,7 @@ class ModifierController extends Controller
         $restaurant = app(TenantContext::class)->restaurant();
 
         abort_unless(
-            $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
+            $user?->isPlatformOwner() || $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
             403
         );
     }

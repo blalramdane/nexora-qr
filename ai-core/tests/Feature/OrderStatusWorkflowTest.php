@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Menu;
 use App\Models\MenuCategory;
-use App\Models\LocalBusiness;
 use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\Template;
@@ -20,7 +19,6 @@ class OrderStatusWorkflowTest extends TestCase
     public function test_order_status_must_follow_the_operational_workflow(): void
     {
         $restaurant = Restaurant::create(['name' => 'Workflow Restaurant', 'slug' => 'workflow-restaurant', 'is_active' => true]);
-        LocalBusiness::create(['restaurant_id' => $restaurant->id, 'name' => 'Workflow Scout Record', 'slug' => 'workflow-scout-record', 'city' => 'الزرقا', 'category' => 'مطعم']);
         app(TenantContext::class)->set($restaurant);
         $user = User::factory()->create();
         $user->restaurants()->attach($restaurant->id, ['role' => 'owner']);
@@ -42,14 +40,11 @@ class OrderStatusWorkflowTest extends TestCase
         $this->assertSame('completed', $order->fresh()->status);
         $this->assertDatabaseCount('order_status_histories', 4);
         $this->assertDatabaseHas('order_status_histories', ['order_id' => $order->id, 'from_status' => 'new', 'to_status' => 'confirmed', 'changed_by' => $user->id]);
-        $this->assertDatabaseHas('local_business_activities', ['type' => 'order_status', 'outcome' => 'confirmed', 'notes' => 'تحديث حالة الطلب NX-TEST-001 من new إلى confirmed']);
-        $this->assertDatabaseHas('local_business_activities', ['type' => 'order_status', 'outcome' => 'completed', 'notes' => 'تحديث حالة الطلب NX-TEST-001 من ready إلى completed']);
     }
 
     public function test_payment_status_can_be_marked_paid_then_refunded_but_cannot_skip_steps(): void
     {
         $restaurant = Restaurant::create(['name' => 'Payment Restaurant', 'slug' => 'payment-restaurant', 'is_active' => true]);
-        LocalBusiness::create(['restaurant_id' => $restaurant->id, 'name' => 'Payment Scout Record', 'slug' => 'payment-scout-record', 'city' => 'دمياط', 'category' => 'مطعم']);
         app(TenantContext::class)->set($restaurant);
         $user = User::factory()->create();
         $user->restaurants()->attach($restaurant->id, ['role' => 'owner']);
@@ -67,7 +62,5 @@ class OrderStatusWorkflowTest extends TestCase
         $this->actingAs($user)->patch(route('orders.payment.update', $order), ['payment_status' => 'refunded'])->assertRedirect(route('orders.index'));
         $this->assertSame('refunded', $order->fresh()->payment_status);
         $this->actingAs($user)->patch(route('orders.payment.update', $order), ['payment_status' => 'paid'])->assertUnprocessable();
-        $this->assertDatabaseHas('local_business_activities', ['type' => 'payment_status', 'outcome' => 'paid', 'notes' => 'تحديث حالة دفع الطلب NX-PAY-001 إلى paid']);
-        $this->assertDatabaseHas('local_business_activities', ['type' => 'payment_status', 'outcome' => 'refunded', 'notes' => 'تحديث حالة دفع الطلب NX-PAY-001 إلى refunded']);
     }
 }

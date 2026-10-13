@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Menu;
-use App\Models\LocalBusiness;
 use App\Models\MenuCategory;
 use App\Models\Product;
 use App\Models\Restaurant;
@@ -24,23 +23,11 @@ class MenuPublishWorkflowTest extends TestCase
             ->assertRedirect(route('menus.show', $menu));
 
         $this->assertTrue($menu->fresh()->is_published);
-        $this->assertDatabaseHas('local_businesses', [
-            'restaurant_id' => $restaurant->id,
-            'name' => $restaurant->name,
-            'listing_status' => 'published',
-            'menu_status' => 'available',
-            'menu_url' => route('public.menu.show', [$restaurant->slug, $menu->slug]),
-        ]);
 
         $this->actingAs($user)->post(route('menus.unpublish', $menu))
             ->assertRedirect(route('menus.show', $menu));
 
         $this->assertFalse($menu->fresh()->is_published);
-        $this->assertDatabaseHas('local_businesses', [
-            'restaurant_id' => $restaurant->id,
-            'listing_status' => 'draft',
-            'menu_status' => 'unknown',
-        ]);
     }
 
     public function test_publish_requires_an_active_category_and_available_product(): void

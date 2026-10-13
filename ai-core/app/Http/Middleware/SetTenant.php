@@ -23,6 +23,10 @@ class SetTenant
             return redirect()->route('delivery.dashboard');
         }
 
+        if ($user->isPlatformOwner() && $user->restaurants()->where('restaurants.is_active', true)->doesntExist()) {
+            return redirect()->route('owner.menus.index');
+        }
+
         $restaurant = $user->restaurants()
             ->where('restaurants.is_active', true)
             ->first();

@@ -65,5 +65,8 @@ class DatabaseSeeder extends Seeder
                 $versionOne->activate();
             }
         }
+
+        // Seed only reusable platform templates. Restaurant and menu data is
+        // created by the tenant through the application, never by platform setup.
     }
 }

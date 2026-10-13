@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Menu;
 use App\Models\Template;
-use App\Services\SyncRestaurantToLocalDirectory;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -46,34 +46,77 @@ class MenuController extends Controller
 
         $restaurant = app(TenantContext::class)->restaurant();
 
-        $theme = $template->key === 'fast-food'
-            ? [
-                'primary' => '#c9953c',
-                'accent' => '#e7b55d',
-                'background' => '#090807',
-                'foreground' => '#f8efe0',
-                'radius' => 'xl',
-            ]
-            : [
-                'primary' => '#111827',
-                'accent' => '#f59e0b',
-                'background' => '#ffffff',
-                'foreground' => '#111827',
-                'radius' => 'xl',
-            ];
+        $version = $template->activeVersion()->firstOrFail();
+        $theme = $version->schema['theme'] ?? null;
+        if (! is_array($theme)) {
+            $theme = $template->key === 'fast-food'
+                ? [
+                    'primary' => '#c9953c',
+                    'accent' => '#e7b55d',
+                    'background' => '#090807',
+                    'foreground' => '#f8efe0',
+                    'radius' => 'xl',
+                ]
+                : [
+                    'primary' => '#111827',
+                    'accent' => '#f59e0b',
+                    'background' => '#ffffff',
+                    'foreground' => '#111827',
+                    'radius' => 'xl',
+                ];
+        }
 
         $menu = Menu::create([
             'restaurant_id' => $restaurant->id,
             'template_id' => $template->id,
-            'template_version_id' => $template->activeVersion()->firstOrFail()->id,
+            'template_version_id' => $version->id,
             'name' => $data['name'],
             'slug' => $this->uniqueSlug($data['name']),
             'theme' => $theme,
         ]);
 
-        app(SyncRestaurantToLocalDirectory::class)->sync($restaurant);
-
         return to_route('menus.show', $menu);
+    }
+
+    public function storeForOwnerStudio(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'restaurant_id' => ['required', 'integer', 'exists:restaurants,id'],
+            'name' => ['required', 'string', 'max:120'],
+            'template_key' => ['required', 'string', 'exists:templates,key'],
+        ]);
+
+        $restaurant = \App\Models\Restaurant::query()->findOrFail($data['restaurant_id']);
+        abort_unless(
+            $request->user()?->isPlatformOwner()
+                || in_array($request->user()?->roleIn($restaurant), ['owner', 'manager'], true),
+            403
+        );
+        app(TenantContext::class)->set($restaurant);
+        $template = Template::query()->where('key', $data['template_key'])->where('is_active', true)->firstOrFail();
+        $version = $template->activeVersion()->firstOrFail();
+        $theme = $version->schema['theme'] ?? [
+            'primary' => '#111827', 'accent' => '#f59e0b', 'background' => '#ffffff', 'foreground' => '#111827', 'radius' => 'xl',
+        ];
+        $baseSlug = Str::slug($data['name']) ?: 'menu';
+        // Query the table directly so tenant global scopes cannot hide a
+        // duplicate belonging to this restaurant and cause a UNIQUE failure.
+        $slug = $baseSlug;
+        $suffix = 2;
+        while (DB::table('menus')->where('restaurant_id', $restaurant->id)->where('slug', $slug)->exists()) {
+            $slug = $baseSlug.'-'.$suffix++;
+        }
+
+        $menu = Menu::create([
+            'restaurant_id' => $restaurant->id,
+            'template_id' => $template->id,
+            'template_version_id' => $version->id,
+            'name' => $data['name'],
+            'slug' => $slug,
+            'theme' => $theme,
+        ]);
+
+        return to_route('owner.menus.show', $menu)->with('success', 'تم إنشاء المنيو بالقالب المختار للمطعم.');
     }
 
     public function show(int $menu): Response
@@ -81,13 +124,16 @@ class MenuController extends Controller
         $this->authorizeMenuManagement();
 
         $menuModel = Menu::query()
-            ->with(['template.activeVersion', 'templateVersion', 'categories.products.variants', 'categories.products.modifiers'])
+            ->with(['restaurant:id,name', 'template.activeVersion', 'templateVersion', 'categories.products.variants', 'categories.products.modifiers'])
             ->findOrFail($menu);
 
         return Inertia::render('Menu/Builder', [
             'menu' => $menuModel,
+            'restaurantName' => $menuModel->restaurant?->name ?? 'NEXORA',
             'publicUrl' => route('public.menu.show', [app(TenantContext::class)->restaurant()->slug, $menuModel->slug]),
             'template' => $menuModel->template,
+            'managementBase' => request()->routeIs('owner.*') ? '/owner/menus/'.$menuModel->id : '/menus/'.$menuModel->id,
+            'menusIndexUrl' => request()->routeIs('owner.*') ? route('owner.menus.index') : route('menus.index'),
             'templates' => Template::query()
                 ->where('is_active', true)
                 ->orderBy('name')
@@ -124,7 +170,7 @@ class MenuController extends Controller
                 : $menuModel->slug,
         ]);
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function updateTheme(Request $request, int $menu): RedirectResponse
@@ -151,7 +197,7 @@ class MenuController extends Controller
 
         $menuModel->update(['theme' => $data]);
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function publish(int $menu): RedirectResponse
@@ -165,13 +211,11 @@ class MenuController extends Controller
         $errors = $this->publishValidationErrors($menuModel);
 
         if ($errors !== []) {
-            return redirect()->route('menus.show', ['menu' => $menuModel->id])->withErrors($errors);
+            return redirect()->route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', ['menu' => $menuModel->id])->withErrors($errors);
         }
 
         $menuModel->update(['is_published' => true]);
-        app(SyncRestaurantToLocalDirectory::class)->sync($menuModel->restaurant);
-
-        return to_route('menus.show', $menuModel)->with('success', 'Menu published successfully.');
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel)->with('success', 'Menu published successfully.');
     }
 
     public function unpublish(int $menu): RedirectResponse
@@ -180,9 +224,7 @@ class MenuController extends Controller
 
         $menuModel = Menu::query()->findOrFail($menu);
         $menuModel->update(['is_published' => false]);
-        app(SyncRestaurantToLocalDirectory::class)->sync($menuModel->restaurant);
-
-        return to_route('menus.show', $menuModel)->with('success', 'Menu unpublished successfully.');
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel)->with('success', 'Menu unpublished successfully.');
     }
 
     public function destroy(int $menu): RedirectResponse
@@ -190,11 +232,9 @@ class MenuController extends Controller
         $this->authorizeMenuManagement();
 
         $menuModel = Menu::query()->findOrFail($menu);
-        $restaurant = $menuModel->restaurant;
         $menuModel->delete();
-        app(SyncRestaurantToLocalDirectory::class)->sync($restaurant);
 
-        return to_route('menus.index');
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.index' : 'menus.index');
     }
 
     private function publishValidationErrors(Menu $menu): array
@@ -232,7 +272,7 @@ class MenuController extends Controller
         $restaurant = app(TenantContext::class)->restaurant();
 
         abort_unless(
-            $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
+            $user?->isPlatformOwner() || $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
             403
         );
     }

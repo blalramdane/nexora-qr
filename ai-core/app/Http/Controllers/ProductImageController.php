@@ -41,7 +41,7 @@ class ProductImageController extends Controller
             $disk->delete($oldPath);
         }
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     public function destroy(int $menu, int $category, int $product): RedirectResponse
@@ -63,7 +63,7 @@ class ProductImageController extends Controller
             $productModel->update(['image_path' => null]);
         }
 
-        return to_route('menus.show', $menuModel);
+        return to_route(request()->routeIs('owner.*') ? 'owner.menus.show' : 'menus.show', $menuModel);
     }
 
     private function authorizeMenuManagement(): void
@@ -72,7 +72,7 @@ class ProductImageController extends Controller
         $restaurant = app(TenantContext::class)->restaurant();
 
         abort_unless(
-            $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
+            $user?->isPlatformOwner() || $user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager',
             403
         );
     }

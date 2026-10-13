@@ -7,11 +7,12 @@ Execute the canonical plan one bounded step at a time and improve the codebase w
 ## Before changing code
 
 1. Read this protocol.
-2. Read .nexora/execution-plan.json and .nexora/state.json.
-3. Read docs/plans/NEXORA_QR_MASTER_EXECUTION_PLAN.md.
-4. Inspect current code and existing patterns.
+2. Read `.nexora/AI-OS-ORCHESTRATION.md`, `.nexora/WORK-QUEUE.json`, `.nexora/execution-plan.json`, and `.nexora/state.json`.
+3. Read `docs/plans/NEXORA_QR_MASTER_EXECUTION_PLAN.md`.
+4. Inspect current Git status, branch, recent commits, and the affected code. Preserve existing user changes.
 5. Read relevant Design Intelligence references.
-6. Choose the smallest implementation that satisfies the current step.
+6. Reconcile the execution plan/state against current code and current verification. Do not treat old test results or stale task state as fresh evidence.
+7. Choose the smallest implementation that satisfies the current step and meets its acceptance criteria.
 
 ## Execution loop
 
@@ -45,7 +46,7 @@ Mark the state blocked when required information is unavailable, a security/data
 
 ## Completion
 
-A step is complete only after its required verification gates pass and .nexora/state.json and .nexora/RUN-LOG.md are updated.
+A step is complete only after its required verification gates pass and `.nexora/state.json`, `.nexora/RUN-LOG.md`, and `.nexora/WORK-QUEUE.json` are updated consistently. Include concrete evidence and clearly mark skipped or unrun checks.
 
 ## Human gate
 

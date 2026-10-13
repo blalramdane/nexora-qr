@@ -23,7 +23,7 @@ if [[ "$DRY_RUN" == "1" ]]; then
   exit 0
 fi
 
-if [[ -z "${NEXORA_AGENT_CMD:-}" ]]; then
+if [[ -z "${NEXORA_AGENT_CMD:-}" && ! -f "$ROOT/.nexora/provider-adapter/aios_provider.py" ]]; then
   echo "NEXORA_AGENT_CMD is required."
   echo "Set it to the approved coding-agent CLI/command used by your environment."
   exit 2
@@ -35,7 +35,10 @@ You are the NEXORA QR autonomous engineering agent.
 Repository root: $ROOT
 
 Read first:
+- .nexora/AI-OS-ORCHESTRATION.md
+- .nexora/WORK-QUEUE.json
 - .nexora/AGENT-PROTOCOL.md
+- .nexora/PROVIDER-CONTRACT.md
 - .nexora/execution-plan.json
 - .nexora/state.json
 - docs/plans/NEXORA_QR_MASTER_EXECUTION_PLAN.md
@@ -47,6 +50,7 @@ Requested step: $STEP
 Maximum steps: $MAX_STEPS
 
 Modify source code, tests and docs required by the current step.
+Preserve every pre-existing working-tree change; never reset, clean, or discard user work.
 Run every required verification gate.
 If something fails, diagnose evidence and repair within the configured limit.
 Do not merge, deploy, expose secrets, or silently expand scope.
@@ -56,4 +60,26 @@ Report step, changes, tests, build, verification, blockers, ideas, and remaining
 EOF
 )
 
-printf '%s\n' "$PROMPT" | bash -lc "$NEXORA_AGENT_CMD"
+ADAPTER="$ROOT/.nexora/provider-adapter/aios_provider.py"
+if [[ -f "$ADAPTER" ]]; then
+  if command -v python >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python)"
+  elif command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python3)"
+  else
+    echo "NEXORA provider adapter requires Python 3." >&2
+    exit 2
+  fi
+  if [[ "$STEP" == "auto" ]]; then
+    PROJECT_ID="${NEXORA_PROJECT:-ai-os}"
+    STEP="$("$PYTHON_BIN" "$ADAPTER" next --project "$PROJECT_ID" | "$PYTHON_BIN" -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+  fi
+  PROVIDER_TIMEOUT="${NEXORA_PROVIDER_TIMEOUT:-1800}"
+  "$PYTHON_BIN" "$ADAPTER" run \
+    --role coding-primary \
+    --task-id "$STEP" \
+    --timeout "$PROVIDER_TIMEOUT"
+else
+  # Backward-compatible path for repositories that have not adopted the adapter.
+  printf '%s\n' "$PROMPT" | bash -lc "$NEXORA_AGENT_CMD"
+fi
