@@ -9,6 +9,7 @@ mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessi
 # Opt-in escape hatch for a supervised first boot: set RUN_MIGRATIONS=1,
 # then remove the setting afterwards so later restarts stay read-only.
 if [ "${RUN_MIGRATIONS:-0}" = "1" ]; then
+    php artisan migrations:reconcile-existing --no-interaction
     php artisan migrate --force --no-interaction
 fi
 
