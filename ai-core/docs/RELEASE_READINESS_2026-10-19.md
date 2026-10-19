@@ -34,19 +34,20 @@
 | Fresh isolated MySQL 8.4 migration run | PASS — all migrations applied |
 | Repeated migration run on MySQL 8.4 | PASS — `Nothing to migrate` |
 | Recovery after isolated partial migration failures | PASS — delivery, settlement, notification, and loyalty migrations converged without dropping test data |
-| GitHub Actions run on `b540625` | First run exposed two MySQL-only test failures after all install, audit, Pint, TypeScript, Vite-build, and migration steps passed. See follow-up fixes below. |
+| GitHub Actions run on `b540625` | First run exposed two MySQL-only test failures after all install, audit, Pint, TypeScript, Vite-build, and migration steps passed; both were fixed in the follow-up commit. |
 | MySQL-targeted regression tests | PASS — 18 tests, 180 assertions on MySQL 8.4 |
+| GitHub Actions run on `5fed07c` | PASS — all workflow steps, including migrations and the full MySQL test suite; [run #39215199595](https://github.com/blalramdane/nexora-qr/actions/runs/39215199595) |
 
 The smoke test and MySQL 8.4 migrations were local and isolated only. They did not connect to production, publish an image, or apply migrations to a production database. The temporary MySQL container and temporary HTTP smoke-test container were removed after verification.
 
 ## Release blockers
 
-1. **Review Git scope before committing.** This working tree has many pre-existing modified and untracked files spanning application code, migrations, UI, docs, and AIOS tooling. Do not stage everything as one release. The current Docker image was built from the local working tree, not from a clean, reviewed commit.
-2. **Re-run repository CI after the MySQL compatibility fixes.** The first GitHub run revealed a `wherePivot` query-builder misuse in the delivery cash-settlement screen and an order-sensitive JSON theme assertion. The query now explicitly filters `restaurant_delivery_riders.status`, and the theme test asserts each token independent of database JSON key ordering. Local full suite now passes (175 tests, 1,817 assertions); confirm the GitHub rerun passes before release approval.
-3. **Configure the real target.** Confirm the production domain, `APP_URL`, generated `APP_KEY`, DB credentials, `APP_DEBUG=false`, HTTPS, and secret storage in the hosting provider. Do not commit production env files.
-4. **Protect production data.** Inspect the production migration plan and take a restorable database and uploaded-media backup before any migration. Do not use `migrate:fresh`, `db:wipe`, or seeders on production.
-5. **Run a production-like acceptance pass.** From a real phone, scan the published QR, submit a pickup and delivery test order, verify it reaches the correct restaurant workspace, track it externally, verify persisted images and queue processing, and confirm tenant isolation.
-6. **Verify integrations explicitly.** Configure and test email/WhatsApp only after approved credentials and templates are in place. Keep optional paid integrations disabled until their costs and credentials are approved.
+1. **Configure the real target.** Confirm the production domain, `APP_URL`, generated `APP_KEY`, DB credentials, `APP_DEBUG=false`, HTTPS, and secret storage in the hosting provider. Do not commit production env files.
+2. **Protect production data.** Inspect the production migration plan and take a restorable database and uploaded-media backup before any migration. Do not use `migrate:fresh`, `db:wipe`, or seeders on production.
+3. **Run a production-like acceptance pass.** From a real phone, scan the published QR, submit a pickup and delivery test order, verify it reaches the correct restaurant workspace, track it externally, verify persisted images and queue processing, and confirm tenant isolation.
+4. **Verify integrations explicitly.** Configure and test email/WhatsApp only after approved credentials and templates are in place. Keep optional paid integrations disabled until their costs and credentials are approved.
+
+The release app/CI scope is committed and pushed. AIOS and runner work remains intentionally outside the release commits and should be handled in a separate change set.
 
 ## Commands for the release gate
 
@@ -66,7 +67,8 @@ docker build -t nexora-qr:release-candidate .
 
 ## Publish/deploy status
 
-- No Git commit or push was performed.
+- Application/CI release commits are pushed to `feat/menu-visual-overhaul`.
+- No registry image was published.
 - No registry image was published.
 - No production service was deployed or restarted.
 - No production migration was run.
