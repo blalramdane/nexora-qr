@@ -23,7 +23,7 @@ class DeliveryCashSettlementController extends Controller
             ->where('delivery_status', 'delivered')->whereIn('payment_method', ['cash_on_delivery', 'cash'])->where('payment_status', 'unpaid')
             ->whereDoesntHave('cashSettlements')->with('deliveryRider.user:id,name')->oldest('delivered_at')->get();
         $settlements = DeliveryCashSettlement::query()->where('restaurant_id', $restaurantId)
-            ->with(['rider.user:id,name', 'orders:id,order_number,customer_name']) ->latest()->limit(100)->get()->map(fn ($s) => [
+            ->with(['rider.user:id,name', 'orders:id,order_number,customer_name'])->latest()->limit(100)->get()->map(fn ($s) => [
                 'id' => $s->id, 'rider_name' => $s->rider?->user?->name ?? 'مندوب غير متاح',
                 'expected_amount' => (float) $s->expected_amount, 'collected_amount' => (float) $s->collected_amount,
                 'handed_over_amount' => (float) $s->handed_over_amount,
@@ -32,8 +32,12 @@ class DeliveryCashSettlementController extends Controller
                 'status' => $s->status, 'notes' => $s->notes, 'created_at' => $s->created_at?->toISOString(),
                 'orders' => $s->orders->map(fn ($o) => ['order_number' => $o->order_number, 'customer_name' => $o->customer_name, 'expected_amount' => (float) $o->pivot->expected_amount])->values(),
             ])->values();
+
         return Inertia::render('Delivery/Settlements', [
-            'riders' => DeliveryRider::query()->where('status', 'active')->whereHas('restaurants', fn ($q) => $q->where('restaurants.id', $restaurantId)->wherePivot('status', 'active'))->with('user:id,name')->get()->map(fn ($r) => ['id' => $r->id, 'name' => $r->user->name])->values(),
+            'riders' => DeliveryRider::query()->where('status', 'active')->whereHas('restaurants', fn ($q) => $q
+                ->where('restaurants.id', $restaurantId)
+                ->where('restaurant_delivery_riders.status', 'active'))
+                ->with('user:id,name')->get()->map(fn ($r) => ['id' => $r->id, 'name' => $r->user->name])->values(),
             'eligibleOrders' => $eligibleOrders->map(fn ($o) => ['id' => $o->id, 'order_number' => $o->order_number, 'customer_name' => $o->customer_name, 'total' => (float) $o->total, 'delivered_at' => $o->delivered_at?->toISOString(), 'delivery_rider_id' => $o->delivery_rider_id, 'rider_name' => $o->deliveryRider?->user?->name ?? 'مندوب غير متاح'])->values(),
             'settlements' => $settlements,
             'summary' => [
@@ -72,13 +76,13 @@ class DeliveryCashSettlementController extends Controller
             DeliveryRiderLedgerEntry::create([
                 'restaurant_id' => $restaurantId, 'delivery_rider_id' => $rider->id, 'created_by' => $request->user()->id,
                 'settlement_id' => $settlement->id, 'type' => 'collection', 'amount' => $data['collected_amount'],
-                'description' => 'تحصيل نقدي مسجل ضمن التسوية #' . $settlement->id, 'occurred_at' => now(),
+                'description' => 'تحصيل نقدي مسجل ضمن التسوية #'.$settlement->id, 'occurred_at' => now(),
             ]);
             if ((float) $data['handed_over_amount'] > 0) {
                 DeliveryRiderLedgerEntry::create([
                     'restaurant_id' => $restaurantId, 'delivery_rider_id' => $rider->id, 'created_by' => $request->user()->id,
                     'settlement_id' => $settlement->id, 'type' => 'handover', 'amount' => $data['handed_over_amount'],
-                    'description' => 'تسليم نقدية للمطعم ضمن التسوية #' . $settlement->id, 'occurred_at' => now(),
+                    'description' => 'تسليم نقدية للمطعم ضمن التسوية #'.$settlement->id, 'occurred_at' => now(),
                 ]);
             }
             foreach ($orders as $order) {
@@ -88,12 +92,14 @@ class DeliveryCashSettlementController extends Controller
                 }
             }
         });
+
         return to_route('delivery.settlements.index')->with('success', 'تم حفظ تسوية المندوب وربط الطلبات بها. راجع أي فرق تحصيل أو تسليم ظاهر في التقرير.');
     }
 
     private function authorizeManagement(): void
     {
-        $user = request()->user(); $restaurant = app(TenantContext::class)->restaurant();
+        $user = request()->user();
+        $restaurant = app(TenantContext::class)->restaurant();
         abort_unless($user?->isOwnerOf($restaurant) || $user?->roleIn($restaurant) === 'manager', 403);
     }
 }

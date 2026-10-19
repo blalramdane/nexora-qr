@@ -22,7 +22,7 @@
 
 | Check | Result |
 |---|---|
-| `php artisan test` | PASS — 175 tests, 1,813 assertions |
+| `php artisan test` | PASS — 175 tests, 1,817 assertions |
 | `npm run typecheck` | PASS |
 | `npm run build` | PASS — 881 modules transformed |
 | `npm audit --omit=dev` | PASS — zero reported vulnerabilities |
@@ -34,13 +34,15 @@
 | Fresh isolated MySQL 8.4 migration run | PASS — all migrations applied |
 | Repeated migration run on MySQL 8.4 | PASS — `Nothing to migrate` |
 | Recovery after isolated partial migration failures | PASS — delivery, settlement, notification, and loyalty migrations converged without dropping test data |
+| GitHub Actions run on `b540625` | First run exposed two MySQL-only test failures after all install, audit, Pint, TypeScript, Vite-build, and migration steps passed. See follow-up fixes below. |
+| MySQL-targeted regression tests | PASS — 18 tests, 180 assertions on MySQL 8.4 |
 
 The smoke test and MySQL 8.4 migrations were local and isolated only. They did not connect to production, publish an image, or apply migrations to a production database. The temporary MySQL container and temporary HTTP smoke-test container were removed after verification.
 
 ## Release blockers
 
 1. **Review Git scope before committing.** This working tree has many pre-existing modified and untracked files spanning application code, migrations, UI, docs, and AIOS tooling. Do not stage everything as one release. The current Docker image was built from the local working tree, not from a clean, reviewed commit.
-2. **Run repository CI from a clean reviewed commit.** Local tests and isolated MySQL 8.4 migrations pass, but CI has not run on a clean pushed commit containing only the approved release scope.
+2. **Re-run repository CI after the MySQL compatibility fixes.** The first GitHub run revealed a `wherePivot` query-builder misuse in the delivery cash-settlement screen and an order-sensitive JSON theme assertion. The query now explicitly filters `restaurant_delivery_riders.status`, and the theme test asserts each token independent of database JSON key ordering. Local full suite now passes (175 tests, 1,817 assertions); confirm the GitHub rerun passes before release approval.
 3. **Configure the real target.** Confirm the production domain, `APP_URL`, generated `APP_KEY`, DB credentials, `APP_DEBUG=false`, HTTPS, and secret storage in the hosting provider. Do not commit production env files.
 4. **Protect production data.** Inspect the production migration plan and take a restorable database and uploaded-media backup before any migration. Do not use `migrate:fresh`, `db:wipe`, or seeders on production.
 5. **Run a production-like acceptance pass.** From a real phone, scan the published QR, submit a pickup and delivery test order, verify it reaches the correct restaurant workspace, track it externally, verify persisted images and queue processing, and confirm tenant isolation.

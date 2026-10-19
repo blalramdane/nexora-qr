@@ -26,13 +26,12 @@ class MenuThemeEditorTest extends TestCase
             'radius' => '2xl',
         ])->assertRedirect("/menus/{$menu->id}");
 
-        $this->assertSame([
-            'primary' => '#111111',
-            'accent' => '#FF8800',
-            'background' => '#FFFFFF',
-            'foreground' => '#222222',
-            'radius' => '2xl',
-        ], $menu->fresh()->theme);
+        $theme = $menu->fresh()->theme;
+        $this->assertSame('#111111', $theme['primary']);
+        $this->assertSame('#FF8800', $theme['accent']);
+        $this->assertSame('#FFFFFF', $theme['background']);
+        $this->assertSame('#222222', $theme['foreground']);
+        $this->assertSame('2xl', $theme['radius']);
     }
 
     public function test_theme_rejects_invalid_color_tokens_and_radius(): void
