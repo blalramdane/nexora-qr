@@ -3,10 +3,11 @@ import FastFoodTemplate from './FastFoodTemplate';
 import CafeTemplate from './CafeTemplate';
 import FineDiningTemplate from './FineDiningTemplate';
 import ProductConfigurator, { requestProductConfiguration } from './ProductConfigurator';
+import { useLocale } from '../../i18n/LocaleProvider';
 
 type Product = {
     id: number; name: string; description?: string | null; price: string;
-    image_path?: string | null; is_available: boolean; is_featured: boolean;
+    image_path?: string | null; is_available: boolean; is_featured: boolean; dietary_tags?: string[] | null;
     variants?: { id: number; name: string; price?: string | null; price_delta?: string; is_active?: boolean }[];
     modifiers?: { id: number; name: string; price_delta: string; is_active: boolean; is_required: boolean; group_name?: string | null; group_min_choices?: number; group_max_choices?: number }[];
 };
@@ -14,12 +15,13 @@ type Category = { id: number; name: string; slug: string; description?: string |
 type Theme = { primary: string; accent: string; background: string; foreground: string; radius: 'sm' | 'md' | 'lg' | 'xl' | '2xl' };
 type TemplateSchema = { layout?: string; theme?: Theme; [key: string]: unknown };
 type Menu = { name: string; categories: Category[]; theme?: Theme | null; template?: { key: string; name: string } | null; template_version?: { version: number; is_active: boolean; schema?: TemplateSchema } | null; templateVersion?: { version: number; is_active: boolean; schema?: TemplateSchema } | null };
-type Props = { menu: Menu; restaurantName?: string; preview?: boolean; previewCategoryId?: number; logoPath?: string | null; restaurantPhone?: string | null; restaurantWhatsappPhone?: string | null };
+type Props = { menu: Menu; restaurantName?: string; restaurantAddress?: string | null; preview?: boolean; previewCategoryId?: number; logoPath?: string | null; restaurantPhone?: string | null; restaurantWhatsappPhone?: string | null; dietaryFilter?: string[] };
 
 const money = (value: string) => Number(value).toFixed(0) + ' ج.م';
 const imageUrl = (path?: string | null) => path && (path.startsWith('http') || path.startsWith('/') || path.startsWith('blob:') || path.startsWith('data:')) ? path : path ? '/storage/' + path : null;
 
 function ProductCard({ product, style, theme }: { product: Product; style: 'compact' | 'editorial' | 'featured'; theme: Theme }) {
+    const { t } = useLocale();
     const hasOptions = (product.variants ?? []).some(variant => variant.is_active !== false) || (product.modifiers ?? []).some(modifier => modifier.is_active !== false);
     const shell = style === 'featured' ? 'border-white/10 bg-white/5 text-white' : style === 'editorial' ? 'border-black/10 bg-white' : 'border-black/10 bg-white';
     const radius = ({ sm: '0.5rem', md: '0.75rem', lg: '1rem', xl: '1.25rem', '2xl': '1.75rem' } as const)[theme.radius];
@@ -32,12 +34,14 @@ function ProductCard({ product, style, theme }: { product: Product; style: 'comp
                 <div><h3 className="font-black">{product.name}</h3>{product.description && <p className="mt-1 text-sm opacity-60">{product.description}</p>}</div>
                 <strong className="shrink-0">{money(product.price)}</strong>
             </div>
-            <button type="button" disabled={!product.is_available} onClick={() => requestProductConfiguration(product, theme)} style={{ backgroundColor: theme.primary, borderRadius: radius }} className="mt-4 w-full px-4 py-3 text-sm font-black text-white disabled:opacity-40">{product.is_available ? (hasOptions ? 'اختار الحجم والإضافات' : 'اختار الكمية وأضف') : 'غير متاح حالياً'}</button>
+            <button type="button" disabled={!product.is_available} onClick={() => requestProductConfiguration(product, theme)} style={{ backgroundColor: theme.primary, borderRadius: radius }} className="mt-4 w-full px-4 py-3 text-sm font-black text-white disabled:opacity-40">{product.is_available ? (hasOptions ? t('menu.chooseOptions') : t('menu.chooseQuantity')) : t('components.unavailable')}</button>
         </div>
     </article>;
 }
 
-export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restaurant', preview = false, previewCategoryId, logoPath, restaurantPhone, restaurantWhatsappPhone }: Props) {
+export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restaurant', restaurantAddress, preview = false, previewCategoryId, logoPath, restaurantPhone, restaurantWhatsappPhone, dietaryFilter = [] }: Props) {
+    const { t, locale, dir } = useLocale();
+    const isDePapa = /de\s*papa|دي\s*بابا/i.test(`${restaurantName} ${menu.name}`);
     const theme: Theme = menu.theme ?? { primary: '#111827', accent: '#f59e0b', background: '#ffffff', foreground: '#111827', radius: 'xl' };
     const radius = ({ sm: '0.5rem', md: '0.75rem', lg: '1rem', xl: '1.25rem', '2xl': '1.75rem' } as const)[theme.radius];
     const themeStyle = { '--menu-primary': theme.primary, '--menu-accent': theme.accent, '--menu-background': theme.background, '--menu-foreground': theme.foreground, '--menu-radius': radius } as React.CSSProperties;
@@ -51,16 +55,21 @@ export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restau
     }, [previewCategoryId, menu.categories]);
     const [search, setSearch] = useState('');
     const visibleMenu = useMemo(() => {
-        const query = search.trim().toLocaleLowerCase('ar-EG');
-        if (!query) return menu;
+        const query = search.trim().toLocaleLowerCase(locale === 'ar' ? 'ar-EG' : 'en-US');
+        if (!query && dietaryFilter.length === 0) return menu;
         return {
             ...menu,
             categories: categories.map(category => ({
                 ...category,
-                products: category.products.filter(product => `${product.name} ${product.description ?? ''} ${category.name}`.toLocaleLowerCase('ar-EG').includes(query)),
+                products: category.products.filter(product => {
+                    const matchesSearch = !query || `${product.name} ${product.description ?? ''} ${category.name}`.toLocaleLowerCase(locale === 'ar' ? 'ar-EG' : 'en-US').includes(query);
+                    const productTags = product.dietary_tags ?? [];
+                    const matchesDietary = dietaryFilter.every(tag => productTags.includes(tag));
+                    return matchesSearch && matchesDietary;
+                }),
             })).filter(category => category.products.length > 0),
         };
-    }, [categories, menu, search]);
+    }, [categories, menu, search, dietaryFilter, locale]);
     const storedKey = menu.template?.key || 'fast-food';
     const versionLayout = menu.template_version?.schema?.layout ?? menu.templateVersion?.schema?.layout;
     const layouts = ['fast-food', 'cafe', 'fine-dining'] as const;
@@ -85,7 +94,7 @@ export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restau
 
     let renderedTemplate: React.ReactNode;
     if (key === 'fast-food' && (version >= 2 || versionLayout === 'hero-categories-menu-detail' || Boolean(legacyLayoutFallback))) {
-        renderedTemplate = <FastFoodTemplate menu={visibleMenu} restaurantName={restaurantName} logoPath={logoPath} restaurantPhone={restaurantPhone} restaurantWhatsappPhone={restaurantWhatsappPhone} searchActive={Boolean(search.trim())} preview={preview} />;
+        renderedTemplate = <FastFoodTemplate menu={visibleMenu} restaurantName={restaurantName} restaurantAddress={restaurantAddress} logoPath={logoPath} restaurantPhone={restaurantPhone} restaurantWhatsappPhone={restaurantWhatsappPhone} searchActive={Boolean(search.trim())} preview={preview} />;
     } else if (key === 'cafe' && (version >= 2 || versionLayout === key || Boolean(legacyLayoutFallback))) {
         renderedTemplate = <CafeTemplate menu={visibleMenu} restaurantName={restaurantName} logoPath={logoPath} restaurantPhone={restaurantPhone} restaurantWhatsappPhone={restaurantWhatsappPhone} searchActive={Boolean(search.trim())} preview={preview} />;
     } else if (key === 'fine-dining' && (version >= 2 || versionLayout === key)) {
@@ -116,15 +125,15 @@ export default function TemplateRenderer({ menu, restaurantName = 'NEXORA Restau
     }
 
     return <>
-        {!preview && <div dir="rtl" className="sticky top-0 z-[80] border-b border-slate-200 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur" role="search">
-            <div className="mx-auto flex max-w-4xl items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-slate-400">
-                <span aria-hidden="true" className="text-lg text-slate-400">⌕</span>
-                <input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="ابحث عن صنف أو قسم…" aria-label="البحث في المنيو" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
-                {search && <button type="button" onClick={() => setSearch('')} className="rounded-lg px-2 py-1 text-xs font-bold text-slate-600">مسح</button>}
-                <span className="whitespace-nowrap text-[10px] text-slate-400">{visibleMenu.categories.reduce((sum, category) => sum + category.products.length, 0)} صنف</span>
+        {!preview && <div dir={dir} className={`sticky top-0 z-[80] border-b px-4 py-2.5 backdrop-blur ${isDePapa ? 'border-[#d6a45b]/20 bg-[#100a07]/95 text-[#f7ecdc] shadow-[0_10px_28px_rgba(0,0,0,.3)]' : 'border-slate-200 bg-white/95 shadow-sm'}`} role="search">
+            <div className={`mx-auto flex max-w-4xl items-center gap-2 rounded-xl border px-3 py-2 focus-within:border-slate-400 ${isDePapa ? 'border-[#d6a45b]/20 bg-white/[0.04]' : 'border-slate-200 bg-slate-50'}`}>
+                <span aria-hidden="true" className={`text-lg ${isDePapa ? 'text-[#d6a45b]/70' : 'text-slate-400'}`}>⌕</span>
+                <input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder={t('menu.search')} aria-label={t('menu.search')} className={`min-w-0 flex-1 bg-transparent text-sm outline-none ${isDePapa ? 'text-white placeholder:text-white/35' : ''}`} />
+                {search && <button type="button" onClick={() => setSearch('')} className={`rounded-lg px-2 py-1 text-xs font-bold ${isDePapa ? 'text-[#f5e7cf]/70 hover:text-white' : 'text-slate-600'}`}>{t('common.clear')}</button>}
+                <span className={`whitespace-nowrap text-[10px] ${isDePapa ? 'text-[#f5e7cf]/45' : 'text-slate-400'}`}>{visibleMenu.categories.reduce((sum, category) => sum + category.products.length, 0)} {t('menu.itemsCount')}</span>
             </div>
         </div>}
-        {!preview && search.trim() && visibleMenu.categories.length === 0 && <div dir="rtl" role="status" className="sticky top-[62px] z-[75] mx-auto max-w-4xl border-b border-amber-200 bg-amber-50 px-4 py-4 text-slate-900 shadow-sm"><p className="font-black">ملقيناش صنف مطابق لـ «{search.trim()}»</p><p className="mt-1 text-sm text-slate-600">جرّب اسمًا مختلفًا أو ارجع لكل المنيو.</p><button type="button" onClick={() => setSearch('')} className="mt-3 rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white">عرض كل المنيو</button></div>}
+        {!preview && (search.trim() || dietaryFilter.length > 0) && visibleMenu.categories.length === 0 && <div dir={dir} role="status" className="sticky top-[62px] z-[75] mx-auto max-w-4xl border-b border-amber-200 bg-amber-50 px-4 py-4 text-slate-900 shadow-sm"><p className="font-black">{t('menu.noMatches')}</p><p className="mt-1 text-sm text-slate-600">{t('menu.tryAnotherSearch')}</p><button type="button" onClick={() => setSearch('')} className="mt-3 rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white">{t('menu.clearSearch')}</button></div>}
         {renderedTemplate}
         <ProductConfigurator />
     </>;

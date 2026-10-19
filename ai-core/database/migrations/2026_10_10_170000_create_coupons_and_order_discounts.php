@@ -1,13 +1,16 @@
 <?php
 
+use App\Support\Deployment\SchemaSync;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
-        Schema::create('coupons', function (Blueprint $table) {
+        // Idempotent guards: survive an earlier partially-recorded run.
+        SchemaSync::createTable('coupons', function (Blueprint $table) {
             $table->id();
             $table->foreignId('restaurant_id')->constrained()->cascadeOnDelete();
             $table->string('code', 40);
@@ -25,7 +28,7 @@ return new class extends Migration {
             $table->index(['restaurant_id', 'is_active', 'ends_at']);
         });
 
-        Schema::table('orders', function (Blueprint $table) {
+        SchemaSync::alterTable('orders', function (Blueprint $table) {
             $table->foreignId('coupon_id')->nullable()->constrained('coupons')->nullOnDelete();
             $table->string('coupon_code', 40)->nullable();
             $table->decimal('discount_amount', 10, 2)->default(0);

@@ -4,7 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         // Idempotent guards: earlier deployment runs may have created some of
@@ -30,7 +31,16 @@ return new class extends Migration {
                 $table->foreignId('invited_by')->nullable()->constrained('users')->nullOnDelete();
                 $table->string('status', 20)->default('pending')->index();
                 $table->timestamps();
-                $table->unique(['restaurant_id', 'delivery_rider_id']);
+                $table->unique(['restaurant_id', 'delivery_rider_id'], 'restaurant_delivery_riders_restaurant_rider_unique');
+            });
+        }
+
+        // Keep the constraint name below MySQL's 64-character identifier
+        // limit, and repair an earlier partial deployment where the table
+        // existed but the unique constraint was never added.
+        if (! Schema::hasIndex('restaurant_delivery_riders', ['restaurant_id', 'delivery_rider_id'], 'unique')) {
+            Schema::table('restaurant_delivery_riders', function (Blueprint $table): void {
+                $table->unique(['restaurant_id', 'delivery_rider_id'], 'restaurant_delivery_riders_restaurant_rider_unique');
             });
         }
 

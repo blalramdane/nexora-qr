@@ -1,0 +1,31 @@
+name: Docker image validation — NEXORA QR
+
+# Manual validation only until an approved production target and rollback plan
+# are configured. This workflow never publishes an image or deploys a server.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker-image-validation:
+    name: Build image without publishing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no registry push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ai-core
+          file: ./ai-core/Dockerfile
+          push: false
+          tags: nexora-qr:validation-${{ github.sha }}
+
+      - name: Explain deployment status
+        run: echo "Image build validated only. No registry image was published and no server was deployed. Configure an approved deployment target before enabling CD."

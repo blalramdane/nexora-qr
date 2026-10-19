@@ -1,13 +1,15 @@
 <?php
 
+use App\Support\Deployment\SchemaSync;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
-        Schema::table('restaurants', function (Blueprint $table): void {
+        // Idempotent guard: survive an earlier partially-recorded run.
+        SchemaSync::alterTable('restaurants', function (Blueprint $table): void {
             $table->boolean('dashboard_order_notifications_enabled')->default(true);
             $table->boolean('whatsapp_order_notifications_enabled')->default(false);
         });

@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DemoInvitation;
+use App\Models\DemoWorkspace;
 use App\Models\LocalBusiness;
 use App\Models\LocalBusinessActivity;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Models\ProspectMenuResearch;
 use App\Services\GooglePlacesDiscoveryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -49,7 +52,26 @@ class LocalScoutController extends Controller
             ->selectRaw('restaurant_id, COUNT(*) as orders_count, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as completed_orders, SUM(CASE WHEN payment_status = ? THEN total ELSE 0 END) as paid_revenue, SUM(CASE WHEN status IN (?, ?, ?) THEN 1 ELSE 0 END) as open_orders', ['completed', 'paid', 'new', 'confirmed', 'preparing'])
             ->groupBy('restaurant_id')->get()->keyBy('restaurant_id');
 
-        $businesses->getCollection()->transform(function (LocalBusiness $business) use ($orderStats) {
+        $demoWorkspaces = DemoWorkspace::query()
+            ->whereIn('local_business_id', $businesses->getCollection()->pluck('id'))
+            ->latest()->get(['id', 'local_business_id', 'status', 'expires_at', 'created_at'])
+            ->groupBy('local_business_id');
+
+        $demoInvitations = DemoInvitation::query()
+            ->whereIn('local_business_id', $businesses->getCollection()->pluck('id'))
+            ->latest()->get(['id', 'local_business_id', 'demo_workspace_id', 'status', 'requested_mode', 'style', 'expires_at', 'submitted_at', 'created_at'])
+            ->groupBy('local_business_id');
+
+        $menuResearches = ProspectMenuResearch::query()
+            ->whereIn('local_business_id', $businesses->getCollection()->pluck('id'))
+            ->latest()->get([
+                'id', 'local_business_id', 'status', 'source_website_url', 'discovered_links',
+                'selected_menu_url', 'extracted_data', 'reviewed_data', 'error_message',
+                'discovered_at', 'processed_at', 'reviewed_at', 'created_at',
+            ])
+            ->groupBy('local_business_id');
+
+        $businesses->getCollection()->transform(function (LocalBusiness $business) use ($orderStats, $demoWorkspaces, $demoInvitations, $menuResearches) {
             $summary = $business->restaurant_id ? $orderStats->get($business->restaurant_id) : null;
             $business->setAttribute('order_stats', [
                 'orders_count' => (int) ($summary->orders_count ?? 0),
@@ -57,6 +79,40 @@ class LocalScoutController extends Controller
                 'open_orders' => (int) ($summary->open_orders ?? 0),
                 'paid_revenue' => (float) ($summary->paid_revenue ?? 0),
             ]);
+            $business->setAttribute('demo_workspaces', ($demoWorkspaces->get($business->id) ?? collect())
+                ->take(3)->map(fn (DemoWorkspace $demo) => [
+                    'id' => $demo->id,
+                    'status' => $demo->status,
+                    'expires_at' => $demo->expires_at?->toIso8601String(),
+                    'created_at' => $demo->created_at?->toIso8601String(),
+                    'is_usable' => $demo->isUsable(),
+                ])->values());
+            $business->setAttribute('demo_invitations', ($demoInvitations->get($business->id) ?? collect())
+                ->take(3)->map(fn (DemoInvitation $invitation) => [
+                    'id' => $invitation->id,
+                    'demo_workspace_id' => $invitation->demo_workspace_id,
+                    'status' => $invitation->status,
+                    'requested_mode' => $invitation->requested_mode,
+                    'style' => $invitation->style,
+                    'expires_at' => $invitation->expires_at?->toIso8601String(),
+                    'submitted_at' => $invitation->submitted_at?->toIso8601String(),
+                    'created_at' => $invitation->created_at?->toIso8601String(),
+                ])->values());
+            $business->setAttribute('menu_researches', ($menuResearches->get($business->id) ?? collect())
+                ->take(3)->map(fn (ProspectMenuResearch $research) => [
+                    'id' => $research->id,
+                    'status' => $research->status,
+                    'source_website_url' => $research->source_website_url,
+                    'selected_menu_url' => $research->selected_menu_url,
+                    'discovered_links' => $research->discovered_links ?? [],
+                    'extracted_data' => $research->extracted_data,
+                    'reviewed_data' => $research->reviewed_data,
+                    'error_message' => $research->error_message,
+                    'discovered_at' => $research->discovered_at?->toIso8601String(),
+                    'processed_at' => $research->processed_at?->toIso8601String(),
+                    'reviewed_at' => $research->reviewed_at?->toIso8601String(),
+                    'created_at' => $research->created_at?->toIso8601String(),
+                ])->values());
 
             return $business;
         });
@@ -131,6 +187,7 @@ class LocalScoutController extends Controller
             return response()->json(['message' => $exception->getMessage()], 422);
         } catch (\Throwable $exception) {
             report($exception);
+
             return response()->json(['message' => 'تعذر إكمال البحث. راجع إعدادات مزود البيانات وسجل التطبيق.'], 502);
         }
 

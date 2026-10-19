@@ -11,16 +11,42 @@ class Restaurant extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name','slug','phone','whatsapp_phone','facebook_url','instagram_url','tiktok_url','website_url','delivery_fee','delivery_areas','delivery_enabled','pickup_enabled','dashboard_order_notifications_enabled','whatsapp_order_notifications_enabled','pos_integration_enabled','pos_provider','pos_endpoint_url','pos_integration_notes','logo_path','timezone','is_active'];
+    protected $fillable = ['name', 'slug', 'phone', 'whatsapp_phone', 'facebook_url', 'instagram_url', 'tiktok_url', 'website_url', 'delivery_fee', 'delivery_areas', 'delivery_enabled', 'pickup_enabled', 'dashboard_order_notifications_enabled', 'whatsapp_order_notifications_enabled', 'pos_integration_enabled', 'pos_provider', 'pos_endpoint_url', 'pos_integration_notes', 'logo_path', 'timezone', 'is_active'];
 
     protected function casts(): array
     {
         return ['is_active' => 'boolean', 'delivery_enabled' => 'boolean', 'pickup_enabled' => 'boolean', 'dashboard_order_notifications_enabled' => 'boolean', 'whatsapp_order_notifications_enabled' => 'boolean', 'pos_integration_enabled' => 'boolean', 'delivery_fee' => 'decimal:2', 'delivery_areas' => 'array'];
     }
 
-    public function branches(): HasMany { return $this->hasMany(Branch::class); }
-    public function menus(): HasMany { return $this->hasMany(Menu::class); }
-    public function tables(): HasMany { return $this->hasMany(RestaurantTable::class); }
+    public function branches(): HasMany
+    {
+        return $this->hasMany(Branch::class);
+    }
+
+    public function menus(): HasMany
+    {
+        return $this->hasMany(Menu::class);
+    }
+
+    public function tables(): HasMany
+    {
+        return $this->hasMany(RestaurantTable::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(OrderReview::class);
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
 
     public function users(): BelongsToMany
     {

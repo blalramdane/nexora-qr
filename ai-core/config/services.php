@@ -32,8 +32,15 @@ return [
 
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
-        'menu_scan_model' => env('OPENAI_MENU_SCAN_MODEL', 'gpt-5.5'),
+        'menu_scan_model' => env('OPENAI_MENU_SCAN_MODEL', 'gpt-4o-mini'),
         'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+    ],
+
+    // Explicit opt-in: Places requests can incur billing and are never
+    // triggered merely because an API key exists.
+    'google_places' => [
+        'key' => env('GOOGLE_PLACES_API_KEY'),
+        'enabled' => env('GOOGLE_PLACES_ENABLED', false),
     ],
 
     'ses' => [

@@ -9,9 +9,9 @@ use App\Models\Restaurant;
 use App\Models\Template;
 use App\Models\User;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -33,6 +33,7 @@ class OwnerMenuStudioTest extends TestCase
                 ->where('platformOwner', false)
                 ->has('restaurants', 1)
                 ->where('restaurants.0.id', $restaurant->id)
+                ->where('restaurants.0.kds_url', route('owner.restaurants.kds', $restaurant))
                 ->where('restaurants.0.menus.0.id', $menu->id)
                 ->where('restaurants.0.menus.0.categories_count', 1)
                 ->where('restaurants.0.menus.0.products_count', 1));
@@ -87,6 +88,66 @@ class OwnerMenuStudioTest extends TestCase
         $this->assertNotEmpty($path);
         Storage::disk('public')->assertExists($path);
         $this->assertStringStartsWith('restaurants/'.$restaurant->id.'/products/', $path);
+    }
+
+    public function test_owner_can_save_a_design_profile_template_and_its_theme(): void
+    {
+        [$user, $restaurant, $menu] = $this->ownedMenu('Design Profile Test');
+        $template = Template::query()->create([
+            'key' => 'fast-food-design-test-'.$restaurant->id,
+            'name' => 'Fast Food Design Test',
+            'is_active' => true,
+        ]);
+        $version = $template->createVersion([
+            'layout' => 'fast-food',
+            'theme' => [
+                'primary' => '#166534',
+                'accent' => '#A3E635',
+                'background' => '#F8FAF7',
+                'foreground' => '#17251B',
+                'radius' => '2xl',
+            ],
+        ], true);
+        app(TenantContext::class)->clear();
+
+        $this->actingAs($user)->put('/owner/menus/'.$menu->id, [
+            'name' => $menu->name,
+            'template_key' => $template->key,
+        ])->assertRedirect(route('owner.menus.show', $menu));
+
+        app(TenantContext::class)->clear();
+        $this->actingAs($user)->put('/owner/menus/'.$menu->id.'/theme', [
+            'primary' => '#166534',
+            'accent' => '#A3E635',
+            'background' => '#F8FAF7',
+            'foreground' => '#17251B',
+            'radius' => '2xl',
+        ])->assertRedirect(route('owner.menus.show', $menu));
+
+        $menu->refresh();
+        $this->assertSame($template->id, $menu->template_id);
+        $this->assertSame($version->id, $menu->template_version_id);
+        $this->assertSame('#166534', strtoupper($menu->theme['primary']));
+        $this->assertSame('#A3E635', strtoupper($menu->theme['accent']));
+        $this->assertSame('#F8FAF7', strtoupper($menu->theme['background']));
+        $this->assertSame('#17251B', strtoupper($menu->theme['foreground']));
+        $this->assertSame('2xl', $menu->theme['radius']);
+    }
+
+    public function test_theme_update_rejects_invalid_color_tokens(): void
+    {
+        [$user, , $menu] = $this->ownedMenu('Invalid Theme Test');
+        app(TenantContext::class)->clear();
+
+        $this->actingAs($user)->put('/owner/menus/'.$menu->id.'/theme', [
+            'primary' => 'green',
+            'accent' => '#A3E635',
+            'background' => '#F8FAF7',
+            'foreground' => '#17251B',
+            'radius' => '2xl',
+        ])->assertSessionHasErrors('primary');
+
+        $this->assertSame('#111827', strtoupper($menu->fresh()->theme['primary']));
     }
 
     public function test_owner_can_create_a_product_with_an_uploaded_image_from_the_catalog_form(): void

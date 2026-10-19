@@ -76,7 +76,9 @@ class OwnerMenuStudioController extends Controller
                 'role' => $user->isPlatformOwner() ? 'platform_owner' : $user->roleIn($restaurant),
                 'settings_url' => route('owner.restaurants.settings.orders.edit', $restaurant),
                 'orders_url' => route('owner.restaurants.orders.index', $restaurant),
+                'kds_url' => route('owner.restaurants.kds', $restaurant),
                 'tables_url' => route('owner.restaurants.tables.index', $restaurant),
+                'theme_tests_url' => route('owner.restaurants.theme-tests.index', $restaurant),
                 'menus' => ($menusByRestaurant->get($restaurant->id) ?? collect())->values()->all(),
             ])->values(),
             'templates' => Template::query()

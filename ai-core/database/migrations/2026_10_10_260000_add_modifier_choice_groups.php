@@ -1,13 +1,15 @@
 <?php
 
+use App\Support\Deployment\SchemaSync;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
-        Schema::table('modifiers', function (Blueprint $table) {
+        // Idempotent guard: survive an earlier partially-recorded run.
+        SchemaSync::alterTable('modifiers', function (Blueprint $table) {
             $table->string('group_name', 120)->nullable()->after('name');
             $table->unsignedTinyInteger('group_min_choices')->default(0)->after('group_name');
             $table->unsignedTinyInteger('group_max_choices')->default(1)->after('group_min_choices');

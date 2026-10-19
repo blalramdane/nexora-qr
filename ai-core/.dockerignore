@@ -21,3 +21,5 @@ tests
 .phpunit.cache
 .phpunit.result.cache
 npm-debug.log*
+# Local AI/agent workspace; not required by the Laravel production runtime.
+dsh-our-free-model/

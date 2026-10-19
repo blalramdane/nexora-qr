@@ -1,6 +1,9 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import PwaInstallPrompt from '../Components/PwaInstallPrompt';
+import AnalyticsDashboard from '../Components/AnalyticsDashboard';
+import LocaleSwitcher from '../Components/LocaleSwitcher';
+import { useLocale } from '../i18n/LocaleProvider';
 
 type Restaurant = {
     id: number;
@@ -66,9 +69,10 @@ export default function Dashboard({
     menus: Menu[];
     canManageMenuStudio?: boolean;
 }) {
+    const { t, dir } = useLocale();
     return (
-        <main dir="rtl" className="min-h-screen bg-[#f6f7f9] text-slate-950">
-            <Head title="لوحة التحكم" />
+        <main dir={dir} className="min-h-screen bg-[#f6f7f9] text-slate-950">
+            <Head title={t('dashboard.title')} />
 
             <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
                 <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
@@ -83,6 +87,7 @@ export default function Dashboard({
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-2">
+                        <LocaleSwitcher />
                         <Link
                             href="/menus"
                             className="hidden rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100 sm:block"
@@ -91,6 +96,7 @@ export default function Dashboard({
                         </Link>
                         {canManageMenuStudio && <Link href="/owner/menus" className="hidden rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-100 lg:block">استوديو المنيوهات</Link>}
                         <Link href="/orders" className="rounded-xl bg-slate-950 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 sm:px-4 sm:text-sm">الطلبات</Link>
+                        <Link href="/kds" className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100 sm:px-4 sm:text-sm">شاشة المطبخ</Link>
                         <Link href="/delivery-management" className="hidden rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 md:block">الدليفري</Link>
                         <Link href="/settings/orders" className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold text-slate-700 sm:px-4 sm:text-sm">إعدادات الطلبات</Link>
                         <Form action="/logout" method="post">
@@ -113,10 +119,10 @@ export default function Dashboard({
                                 جاهز للإدارة
                             </div>
                             <h1 className="mt-5 text-3xl font-black tracking-tight sm:text-4xl">
-                                أهلاً بيك في نكسورا.
+                            {t('dashboard.welcome')}
                             </h1>
                             <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
-                                أنشئ منيو احترافي، اختار الـTemplate، حدّث منتجاتك وانشر QR Menu لعملائك من مكان واحد.
+                                {t('dashboard.subtitle')}
                             </p>
                         </div>
 
@@ -124,7 +130,7 @@ export default function Dashboard({
                             href="/menus"
                             className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3.5 text-sm font-black text-slate-950 transition hover:bg-slate-100"
                         >
-                            إدارة المنيوهات
+                            {t('dashboard.manageMenus')}
                             <span className="mr-2">←</span>
                         </Link>
                     </div>
@@ -132,25 +138,25 @@ export default function Dashboard({
 
                 <section className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard
-                        label="إجمالي المنيوهات"
+                        label={t('dashboard.menus')}
                         value={stats.menus}
                         hint="Menus"
                         icon={<span className="text-lg">☰</span>}
                     />
                     <StatCard
-                        label="منيو منشور"
+                        label={t('dashboard.publishedMenus')}
                         value={stats.published_menus}
                         hint="Published"
                         icon={<span className="text-lg text-emerald-600">✓</span>}
                     />
                     <StatCard
-                        label="المنتجات"
+                        label={t('dashboard.products')}
                         value={stats.products}
                         hint="Products"
                         icon={<span className="text-lg">◆</span>}
                     />
                     <StatCard
-                        label="الفروع"
+                        label={t('dashboard.branches')}
                         value={restaurant.branches_count}
                         hint="Branches"
                         icon={<span className="text-lg">⌂</span>}
@@ -162,20 +168,20 @@ export default function Dashboard({
                         <div className="flex items-center justify-between gap-4">
                             <div>
                                 <p className="text-xs font-black tracking-wide text-slate-400">YOUR MENUS</p>
-                                <h2 className="mt-1 text-xl font-black">آخر المنيوهات</h2>
+                                <h2 className="mt-1 text-xl font-black">{t('dashboard.latestMenus')}</h2>
                             </div>
                             <Link href="/menus" className="text-sm font-bold text-slate-600 hover:text-slate-950">
-                                عرض الكل
+                                {t('common.viewAll')}
                             </Link>
                         </div>
 
                         <div className="mt-5 space-y-3">
                             {menus.length === 0 ? (
                                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                                    <p className="font-bold">لسه مفيش منيوهات.</p>
-                                    <p className="mt-1 text-sm text-slate-500">ابدأ بأول Menu من الـTemplates الجاهزة.</p>
+                                    <p className="font-bold">{t('dashboard.noMenus')}</p>
+                                    <p className="mt-1 text-sm text-slate-500">{t('dashboard.createFirstMenu')}</p>
                                     <Link href="/menus" className="mt-4 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white">
-                                        إنشاء أول منيو
+                                        {t('dashboard.createMenu')}
                                     </Link>
                                 </div>
                             ) : (
@@ -196,7 +202,7 @@ export default function Dashboard({
                                         </div>
                                         <div className="flex shrink-0 items-center gap-3">
                                             <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${menu.is_published ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                                                {menu.is_published ? 'منشور' : 'Draft'}
+                                                {menu.is_published ? t('dashboard.published') : t('dashboard.draft')}
                                             </span>
                                             <span className="text-slate-300 transition group-hover:text-slate-700">←</span>
                                         </div>
@@ -208,37 +214,42 @@ export default function Dashboard({
 
                     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                         <p className="text-xs font-black tracking-wide text-slate-400">QUICK ACTIONS</p>
-                        <h2 className="mt-1 text-xl font-black">اختصارات سريعة</h2>
+                        <h2 className="mt-1 text-xl font-black">{t('dashboard.quickActions')}</h2>
 
                         <div className="mt-5 space-y-3">
                             {canManageMenuStudio && <Link href="/owner/menus" className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 transition hover:bg-emerald-100">
                                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">✦</span>
-                                <div><p className="font-bold">استوديو إدارة المنيوهات</p><p className="mt-0.5 text-xs text-slate-600">تحكم في الأصناف والصور والأسعار والأقسام لكل مطعم عندك</p></div>
+                                <div><p className="font-bold">{t('dashboard.menuStudio')}</p><p className="mt-0.5 text-xs text-slate-600">تحكم في الأصناف والصور والأسعار والأقسام لكل مطعم عندك</p></div>
                             </Link>}
                             <Link href="/menus" className="flex items-center gap-3 rounded-2xl bg-slate-950 p-4 text-white transition hover:bg-slate-800">
                                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-lg">+</span>
                                 <div>
-                                    <p className="font-bold">إنشاء Menu جديد</p>
+                                    <p className="font-bold">{t('dashboard.createMenu')}</p>
                                     <p className="mt-0.5 text-xs text-slate-400">اختار Template وابدأ البناء</p>
                                 </div>
                             </Link>
                             <Link href="/menus" className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:bg-slate-50">
                                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-lg">◫</span>
                                 <div>
-                                    <p className="font-bold">Templates</p>
+                                    <p className="font-bold">{t('dashboard.templates')}</p>
                                     <p className="mt-0.5 text-xs text-slate-500">Fast Food · Café · Fine Dining</p>
                                 </div>
                             </Link>
                             <Link href="/orders" className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 transition hover:bg-emerald-100">
                                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">🛎️</span>
-                                <div><p className="font-bold">طلبات العملاء</p><p className="mt-0.5 text-xs text-slate-600">عرض الطلبات الجديدة وتحديث حالتها</p></div>
+                                <div><p className="font-bold">{t('dashboard.orders')}</p><p className="mt-0.5 text-xs text-slate-600">عرض الطلبات الجديدة وتحديث حالتها</p></div>
                             </Link>
+                            <Link href="/kds" className="flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 transition hover:bg-sky-100">
+                                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">🍳</span>
+                                <div><p className="font-bold">شاشة المطبخ</p><p className="mt-0.5 text-xs text-slate-600">الأصناف والإضافات وحالات الطلب مباشرة لفريق التحضير</p></div>
+                            </Link>
+                            {canManageMenuStudio && <Link href={`/owner/restaurants/${restaurant.id}/menu-scans`} className="flex items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 transition hover:bg-indigo-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">📄</span><div><p className="font-bold">{t('dashboard.scanMenu')}</p><p className="mt-0.5 text-xs text-slate-600">{t('dashboard.scanMenuDescription')}</p></div></Link>}
                             <Link href="/coupons" className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 transition hover:bg-amber-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">％</span><div><p className="font-bold">الكوبونات والعروض</p><p className="mt-0.5 text-xs text-slate-600">أكواد الخصم وشروط الاستخدام</p></div></Link>
                             <Link href="/delivery-management" className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 transition hover:bg-blue-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">🛵</span><div><p className="font-bold">إدارة الدليفري</p><p className="mt-0.5 text-xs text-slate-600">ضم المندوبين، قبول الدعوات، وتوزيع الطلبات</p></div></Link>
                             <Link href="/reports/financial" className="flex items-center gap-3 rounded-2xl border border-violet-200 bg-violet-50 p-4 transition hover:bg-violet-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">📊</span><div><p className="font-bold">التقرير المالي اليومي</p><p className="mt-0.5 text-xs text-slate-600">المبيعات وطرق الدفع وتحصلات المندوبين والفروق</p></div></Link>
                             <Link href="/expenses" className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 transition hover:bg-rose-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">🧾</span><div><p className="font-bold">مصروفات المطعم</p><p className="mt-0.5 text-xs text-slate-600">الإيجار والمرافق والرواتب والصيانة والمستلزمات</p></div></Link>
                             <Link href="/purchases" className="flex items-center gap-3 rounded-2xl border border-cyan-200 bg-cyan-50 p-4 transition hover:bg-cyan-100"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-lg">📦</span><div><p className="font-bold">الموردون والمشتريات</p><p className="mt-0.5 text-xs text-slate-600">فواتير التوريد والمدفوعات والمديونية المتبقية</p></div></Link>
-                            <Link href="/settings/orders" className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:bg-slate-50"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-lg">⚙</span><div><p className="font-bold">إعدادات الطلبات</p><p className="mt-0.5 text-xs text-slate-500">واتساب المطعم، مصاريف التوصيل وطرق الاستلام</p></div></Link>
+                            <Link href="/settings/orders" className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:bg-slate-50"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-lg">⚙</span><div><p className="font-bold">{t('dashboard.settings')}</p><p className="mt-0.5 text-xs text-slate-500">واتساب المطعم، مصاريف التوصيل وطرق الاستلام</p></div></Link>
                             <div className="rounded-2xl bg-slate-50 p-4">
                                 <p className="text-xs font-bold text-slate-400">Restaurant ID</p>
                                 <p className="mt-1 font-black">{restaurant.id}</p>
@@ -246,6 +257,7 @@ export default function Dashboard({
                         </div>
                     </section>
                 </div>
+                <div className="mt-5"><AnalyticsDashboard endpoint="/analytics" /></div>
             </div>
         </main>
     );

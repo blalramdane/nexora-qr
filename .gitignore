@@ -4,3 +4,10 @@
 /rtk/
 /t *REMOTE SYNC*
 /tatus -sb
+
+# Local development data and credentials; never include in a release.
+/.tmp/
+/acl-recovery/
+/edge-owner-login.png
+/owner-login-check.png
+/owner-studio-check-2.png

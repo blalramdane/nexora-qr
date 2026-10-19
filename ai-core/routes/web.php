@@ -1,35 +1,47 @@
 <?php
 
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\LocalDirectoryController;
-use App\Http\Controllers\LocalScoutController;
-use App\Http\Controllers\MenuController;
-use App\Http\Controllers\OwnerMenuStudioController;
-use App\Http\Controllers\OwnerAccountController;
-use App\Http\Controllers\MenuCategoryController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\ProductVariantController;
-use App\Http\Controllers\ModifierController;
-use App\Http\Controllers\ProductImageController;
-use App\Http\Controllers\PublicMenuController;
-use App\Http\Controllers\PublicOrderController;
 use App\Http\Controllers\AiWaiterController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\RestaurantSettingsController;
-use App\Http\Controllers\OrderTrackingController;
-use App\Http\Controllers\DeliveryRiderController;
-use App\Http\Controllers\RestaurantDeliveryController;
-use App\Http\Controllers\DeliveryTripController;
+use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CouponController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryCashSettlementController;
+use App\Http\Controllers\DeliveryRiderController;
 use App\Http\Controllers\DeliveryRiderLedgerController;
 use App\Http\Controllers\DeliveryShiftClosingController;
+use App\Http\Controllers\DeliveryTripController;
+use App\Http\Controllers\DemoInvitationController;
+use App\Http\Controllers\DemoWorkspaceController;
 use App\Http\Controllers\FinancialReportController;
-use App\Http\Controllers\RestaurantExpenseController;
-use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\GroupOrderController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\LocalDirectoryController;
+use App\Http\Controllers\LocalScoutController;
+use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\MenuCategoryController;
+use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MenuImportController;
+use App\Http\Controllers\MenuScanController;
+use App\Http\Controllers\ModifierController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OrderReviewController;
+use App\Http\Controllers\OrderTrackingController;
+use App\Http\Controllers\OwnerAccountController;
+use App\Http\Controllers\OwnerMenuStudioController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductImageController;
+use App\Http\Controllers\ProductVariantController;
+use App\Http\Controllers\ProspectMenuResearchController;
+use App\Http\Controllers\PublicMenuController;
+use App\Http\Controllers\PublicOrderController;
+use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\RestaurantDeliveryController;
+use App\Http\Controllers\RestaurantExpenseController;
+use App\Http\Controllers\RestaurantSettingsController;
 use App\Http\Controllers\RestaurantTableController;
+use App\Http\Controllers\TableServiceRequestController;
+use App\Http\Controllers\ThemeAbTestController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -63,19 +75,45 @@ Route::middleware('auth')->group(function () {
     Route::middleware('platform-owner')->prefix('local-scout')->name('local-scout.')->group(function () {
         Route::get('/', [LocalScoutController::class, 'index'])->name('index');
         Route::post('/discover', [LocalScoutController::class, 'discover'])->middleware('throttle:3,1')->name('discover');
+        Route::post('/businesses/{business}/menu-research', [ProspectMenuResearchController::class, 'discover'])->middleware('throttle:10,1')->name('businesses.menu-research');
+        Route::post('/official-site-intake', [ProspectMenuResearchController::class, 'intakeFromOfficialSite'])->middleware('throttle:10,1')->name('official-site-intake');
+        Route::post('/menu-research/{research}/extract', [ProspectMenuResearchController::class, 'extract'])->middleware('throttle:10,1')->name('menu-research.extract');
+        Route::post('/menu-research/{research}/review', [ProspectMenuResearchController::class, 'review'])->middleware('throttle:20,1')->name('menu-research.review');
         Route::post('/businesses', [LocalScoutController::class, 'store'])->middleware('throttle:20,1')->name('businesses.store');
         Route::patch('/businesses/{business}', [LocalScoutController::class, 'update'])->name('businesses.update');
         Route::post('/businesses/{business}/activities', [LocalScoutController::class, 'storeActivity'])->middleware('throttle:30,1')->name('businesses.activities.store');
+        Route::post('/businesses/{business}/demo', [DemoWorkspaceController::class, 'create'])->middleware('throttle:20,1')->name('businesses.demo.create');
+        Route::post('/businesses/{business}/demo-invitations', [DemoInvitationController::class, 'create'])->middleware('throttle:20,1')->name('businesses.demo-invitations.create');
+        Route::post('/demos/{workspace}/revoke', [DemoWorkspaceController::class, 'revoke'])->name('demos.revoke');
+        Route::post('/demo-invitations/{invitation}/revoke', [DemoInvitationController::class, 'revoke'])->name('demo-invitations.revoke');
     });
     Route::middleware('owner-restaurant-tenant')->prefix('owner/restaurants/{restaurant}')->name('owner.restaurants.')->group(function () {
         Route::post('/menus', [OwnerMenuStudioController::class, 'storeMenu'])->name('menus.store');
+        Route::get('/theme-tests', [ThemeAbTestController::class, 'index'])->name('theme-tests.index');
+        Route::post('/theme-tests', [ThemeAbTestController::class, 'store'])->name('theme-tests.store');
+        Route::patch('/theme-tests/{test}', [ThemeAbTestController::class, 'update'])->name('theme-tests.update');
         Route::get('/tables', [RestaurantTableController::class, 'index'])->name('tables.index');
         Route::post('/tables', [RestaurantTableController::class, 'store'])->name('tables.store');
         Route::put('/tables/{table}', [RestaurantTableController::class, 'update'])->name('tables.update');
         Route::get('/settings/orders', [RestaurantSettingsController::class, 'edit'])->name('settings.orders.edit');
         Route::put('/settings/orders', [RestaurantSettingsController::class, 'update'])->name('settings.orders.update');
         Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('/loyalty/balance', [LoyaltyController::class, 'balance'])->name('loyalty.balance');
+        Route::get('/analytics', [AnalyticsController::class, 'overview'])->name('analytics.overview');
+        Route::post('/loyalty/redeem', [LoyaltyController::class, 'redeem'])->name('loyalty.redeem');
+        Route::get('/orders/kds', [OrderController::class, 'kds'])->name('orders.kds');
+        Route::get('/kds', [OrderController::class, 'kdsPage'])->name('kds');
         Route::post('/orders/manual', [OrderController::class, 'storeManual'])->name('orders.manual.store');
+        Route::get('/service-requests', [TableServiceRequestController::class, 'index'])->name('service-requests.index');
+        Route::post('/group-orders', [GroupOrderController::class, 'create'])->name('group-orders.create');
+        Route::get('/menu-scans', [MenuScanController::class, 'index'])->name('menu-scans.index');
+        Route::post('/menu-scans', [MenuScanController::class, 'upload'])->name('menu-scans.upload');
+        Route::post('/menu-scans/{job}/process', [MenuScanController::class, 'process'])->name('menu-scans.process');
+        Route::get('/menu-scans/{job}', [MenuScanController::class, 'show'])->name('menu-scans.show');
+        Route::post('/menu-scans/{job}/review', [MenuScanController::class, 'review'])->name('menu-scans.review');
+        Route::post('/menu-scans/{job}/approve', [MenuScanController::class, 'approve'])->name('menu-scans.approve');
+        Route::patch('/service-requests/{serviceRequest}/acknowledge', [TableServiceRequestController::class, 'acknowledge'])->name('service-requests.acknowledge');
+        Route::patch('/service-requests/{serviceRequest}/resolve', [TableServiceRequestController::class, 'resolve'])->name('service-requests.resolve');
         Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.status');
         Route::patch('/orders/{order}/payment', [OrderController::class, 'updatePaymentStatus'])->name('orders.payment.update');
     });
@@ -125,11 +163,18 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('tenant')->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        Route::get('/analytics', [AnalyticsController::class, 'overview'])->name('analytics.tenant-overview');
         Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::post('/loyalty/redeem', [LoyaltyController::class, 'redeem'])->name('loyalty.redeem');
+        Route::get('/orders/kds', [OrderController::class, 'kds'])->name('orders.kds');
+        Route::get('/kds', [OrderController::class, 'kdsPage'])->name('kds');
         Route::get('/tables', [RestaurantTableController::class, 'index'])->name('tables.index');
         Route::post('/tables', [RestaurantTableController::class, 'store'])->name('tables.store');
         Route::put('/tables/{table}', [RestaurantTableController::class, 'update'])->name('tables.update');
         Route::post('/orders/manual', [OrderController::class, 'storeManual'])->name('orders.manual.store');
+        Route::get('/service-requests', [TableServiceRequestController::class, 'index'])->name('service-requests.index');
+        Route::patch('/service-requests/{serviceRequest}/acknowledge', [TableServiceRequestController::class, 'acknowledge'])->name('service-requests.acknowledge');
+        Route::patch('/service-requests/{serviceRequest}/resolve', [TableServiceRequestController::class, 'resolve'])->name('service-requests.resolve');
         Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.status');
         Route::patch('/orders/{order}/payment', [OrderController::class, 'updatePaymentStatus'])->name('orders.payment.update');
         Route::get('/delivery-management', [RestaurantDeliveryController::class, 'index'])->name('restaurant.delivery.index');
@@ -169,7 +214,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/menus', [MenuController::class, 'store'])->name('menus.store');
         Route::get('/menus/{menu}', [MenuController::class, 'show'])->name('menus.show');
         Route::put('/menus/{menu}', [MenuController::class, 'update'])->name('menus.update');
-Route::put('/menus/{menu}/theme', [MenuController::class, 'updateTheme'])->name('menus.theme.update');
+        Route::put('/menus/{menu}/theme', [MenuController::class, 'updateTheme'])->name('menus.theme.update');
         Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->name('menus.destroy');
         Route::post('/menus/{menu}/publish', [MenuController::class, 'publish'])->name('menus.publish');
         Route::post('/menus/{menu}/unpublish', [MenuController::class, 'unpublish'])->name('menus.unpublish');
@@ -203,7 +248,18 @@ Route::redirect('/', '/dashboard');
 Route::get('/local', [LocalDirectoryController::class, 'index'])->name('local.directory');
 Route::get('/local/{slug}', [LocalDirectoryController::class, 'show'])->name('local.business.show');
 
+// Personalized preview and owner sandbox use separate, hashed, expiring bearer tokens.
+// Sandbox orders never touch the production orders, payments, delivery or accounting tables.
+Route::get('/demo-request/{token}', [DemoInvitationController::class, 'show'])->middleware('throttle:60,1')->name('demo.request.show');
+Route::post('/demo-request/{token}', [DemoInvitationController::class, 'submit'])->middleware('throttle:10,1')->name('demo.request.submit');
+Route::get('/demo/{token}', [DemoWorkspaceController::class, 'show'])->middleware('throttle:60,1')->name('demo.show');
+Route::post('/demo/{token}/orders', [DemoWorkspaceController::class, 'storeOrder'])->middleware('throttle:10,1')->name('demo.orders.store');
+Route::patch('/demo/{token}/menu', [DemoWorkspaceController::class, 'updateMenu'])->middleware('throttle:20,1')->name('demo.menu.update');
+Route::patch('/demo/{token}/orders/{order}/status', [DemoWorkspaceController::class, 'updateOrderStatus'])->middleware('throttle:30,1')->name('demo.orders.status');
+
 // Public QR menu pages are intentionally outside auth and tenant middleware.
+Route::post('/service-requests', [TableServiceRequestController::class, 'store'])
+    ->middleware('throttle:5,1')->name('public.service-requests.store');
 Route::get('/r/{restaurantSlug}/menu/{menuSlug}', [PublicMenuController::class, 'show'])
     ->name('public.menu.show');
 Route::post('/r/{restaurantSlug}/menu/{menuSlug}/orders', [PublicOrderController::class, 'store'])
@@ -216,3 +272,34 @@ Route::get('/r/{restaurantSlug}/orders/{orderNumber}/track/{token}', [OrderTrack
     ->middleware('throttle:30,1')->name('public.orders.track');
 Route::post('/r/{restaurantSlug}/orders/{orderNumber}/track/{token}/review', [OrderTrackingController::class, 'storeReview'])
     ->middleware('throttle:5,1')->name('public.orders.review');
+
+Route::get('/group-orders/{token}', [GroupOrderController::class, 'show'])->name('group-orders.show');
+Route::post('/group-orders/{token}/join', [GroupOrderController::class, 'join'])->name('group-orders.join');
+// Public reviews for a restaurant
+Route::get('/r/{restaurantSlug}/reviews', [OrderReviewController::class, 'public'])->name('public.reviews');
+
+// Invoice routes (authenticated restaurant owners)
+Route::middleware('auth')->prefix('invoices')->name('invoices.')->group(function () {
+    Route::get('/', [InvoiceController::class, 'index'])->name('index');
+    Route::post('/', [InvoiceController::class, 'store'])->name('store');
+    Route::get('/{invoice}', [InvoiceController::class, 'show'])->name('show');
+    Route::patch('/{invoice}/paid', [InvoiceController::class, 'markAsPaid'])->name('paid');
+    Route::delete('/{invoice}', [InvoiceController::class, 'destroy'])->name('destroy');
+});
+
+// Order review routes (authenticated)
+Route::middleware('auth')->prefix('reviews')->name('reviews.')->group(function () {
+    Route::get('/', [OrderReviewController::class, 'index'])->name('index');
+    Route::post('/', [OrderReviewController::class, 'store'])->name('store');
+    Route::patch('/{review}', [OrderReviewController::class, 'update'])->name('update');
+    Route::delete('/{review}', [OrderReviewController::class, 'destroy'])->name('destroy');
+});
+
+// Notification routes (authenticated)
+Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [NotificationController::class, 'index'])->name('index');
+    Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');
+    Route::post('/', [NotificationController::class, 'store'])->name('store');
+    Route::patch('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('read');
+    Route::patch('/read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
+});

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Menu;
 use App\Models\Restaurant;
 use App\Models\RestaurantTable;
+use App\Services\ThemeAbTestingService;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -36,6 +37,8 @@ class PublicMenuController extends Controller
         // continue rendering the version they were created with.
         abort_unless($menu->templateVersion, 404);
 
+        $abTest = app(ThemeAbTestingService::class)->assignFor($menu, $request);
+
         $tableToken = trim((string) $request->query('table', ''));
         $tableContext = null;
         if ($tableToken !== '') {
@@ -45,7 +48,7 @@ class PublicMenuController extends Controller
                 ->where('qr_token_hash', hash('sha256', $tableToken))
                 ->where('is_active', true)
                 ->firstOrFail();
-            $tableContext = ['name' => $table->name, 'token' => $tableToken];
+            $tableContext = ['name' => $table->name, 'token' => $tableToken, 'id' => $table->id];
         }
 
         return Inertia::render('Menu/Public', [
@@ -53,6 +56,7 @@ class PublicMenuController extends Controller
                 'id' => $restaurant->id,
                 'name' => $restaurant->name,
                 'slug' => $restaurant->slug,
+                'address' => $restaurant->branches()->where('slug', 'main')->value('address'),
                 'phone' => $restaurant->phone,
                 'whatsapp_phone' => $restaurant->whatsapp_phone,
                 'logo_path' => $restaurant->logo_path,
@@ -62,6 +66,7 @@ class PublicMenuController extends Controller
                 'pickup_enabled' => $restaurant->pickup_enabled ?? true,
             ],
             'menu' => $menu,
+            'abTest' => $abTest,
             'template' => $menu->template,
             'tableContext' => $tableContext,
         ]);

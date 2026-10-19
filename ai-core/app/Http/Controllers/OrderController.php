@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
+use App\Concerns\LogsActivity;
 use App\Models\Menu;
+use App\Models\Order;
 use App\Models\Product;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +17,50 @@ use Inertia\Response;
 
 class OrderController extends Controller
 {
+    use LogsActivity;
+
+    public function kds(): JsonResponse
+    {
+        $this->authorizeOrderManagement();
+        $restaurantId = app(TenantContext::class)->id();
+        $orders = Order::query()->where('restaurant_id', $restaurantId)
+            ->whereIn('status', ['new', 'confirmed', 'preparing', 'ready'])
+            ->with(['items', 'restaurantTable'])
+            ->latest()->limit(50)->get()
+            ->map(fn (Order $o) => [
+                'id' => $o->id,
+                'order_number' => $o->order_number,
+                'status' => $o->status,
+                'items_count' => $o->items_count,
+                'fulfillment_type' => $o->fulfillment_type,
+                'created_at' => $o->created_at?->toIso8601String(),
+                'customer_name' => $o->customer_name,
+                'restaurant_table_name' => $o->restaurant_table_name ?? $o->restaurantTable?->name,
+                'notes' => $o->notes,
+                'items' => $o->items->map(fn ($item) => [
+                    'id' => $item->id,
+                    'product_name' => $item->product_name,
+                    'quantity' => (int) $item->quantity,
+                    'variant_name' => $item->variant_name,
+                    'modifiers' => collect($item->modifiers ?? [])->pluck('name')->filter()->values(),
+                ])->values(),
+            ]);
+
+        return response()->json($orders);
+    }
+
+    public function kdsPage(): Response
+    {
+        $this->authorizeOrderManagement();
+        $restaurantId = app(TenantContext::class)->id();
+
+        return Inertia::render('Dashboard/KDS', [
+            'ordersBaseUrl' => request()->routeIs('owner.restaurants.kds')
+                ? '/owner/restaurants/'.$restaurantId.'/orders'
+                : '/orders',
+        ]);
+    }
+
     public function index(): Response
     {
         $this->authorizeOrderManagement();
@@ -25,6 +71,7 @@ class OrderController extends Controller
         $restaurant = app(TenantContext::class)->restaurant();
         $ownerContext = request()->routeIs('owner.restaurants.orders.*');
         $ordersBaseUrl = $ownerContext ? '/owner/restaurants/'.$restaurant->id.'/orders' : '/orders';
+        $kdsUrl = $ownerContext ? '/owner/restaurants/'.$restaurant->id.'/kds' : '/kds';
         $settingsUrl = $ownerContext
             ? route('owner.restaurants.settings.orders.edit', $restaurant)
             : route('restaurant.settings.edit');
@@ -38,9 +85,11 @@ class OrderController extends Controller
                     'id' => $product->id, 'name' => $product->name, 'price' => (float) $product->price,
                 ]),
             ])->values();
+
         return Inertia::render('Orders/Index', [
             'orders' => $orders,
             'ordersBaseUrl' => $ordersBaseUrl,
+            'kdsUrl' => $kdsUrl,
             'settingsUrl' => $settingsUrl,
             'backUrl' => $ownerContext ? route('owner.menus.index') : route('dashboard'),
             'ownerContext' => $ownerContext,
@@ -150,6 +199,8 @@ class OrderController extends Controller
             ]);
 
         });
+
+        $this->logActivity('order.status_changed', Order::class, $order, ['new_status' => $data['status']]);
 
         return request()->routeIs('owner.restaurants.orders.*')
             ? to_route('owner.restaurants.orders.index', ['restaurant' => app(TenantContext::class)->id()])->with('success', 'تم تحديث حالة الطلب.')

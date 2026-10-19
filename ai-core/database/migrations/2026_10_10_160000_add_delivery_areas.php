@@ -1,16 +1,19 @@
 <?php
 
+use App\Support\Deployment\SchemaSync;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
-        Schema::table('restaurants', function (Blueprint $table) {
+        // Idempotent guards: survive an earlier partially-recorded run.
+        SchemaSync::alterTable('restaurants', function (Blueprint $table) {
             $table->json('delivery_areas')->nullable()->after('delivery_fee');
         });
-        Schema::table('orders', function (Blueprint $table) {
+        SchemaSync::alterTable('orders', function (Blueprint $table) {
             $table->string('delivery_area', 120)->nullable()->after('delivery_address');
         });
     }

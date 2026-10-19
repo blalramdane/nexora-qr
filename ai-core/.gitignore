@@ -19,6 +19,10 @@
 /storage/*.key
 /storage/pail
 /vendor
+# Local-only AI/agent workspace; not part of the NEXORA QR application.
+/dsh-our-free-model/
+# Local visual QA artifact.
+/de-papa-mobile-final-check.png
 Homestead.json
 Homestead.yaml
 Thumbs.db

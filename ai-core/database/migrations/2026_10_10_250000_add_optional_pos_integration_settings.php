@@ -1,13 +1,15 @@
 <?php
 
+use App\Support\Deployment\SchemaSync;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
-        Schema::table('restaurants', function (Blueprint $table) {
+        // Idempotent guard: survive an earlier partially-recorded run.
+        SchemaSync::alterTable('restaurants', function (Blueprint $table) {
             $table->boolean('pos_integration_enabled')->default(false);
             $table->string('pos_provider')->nullable();
             $table->string('pos_endpoint_url', 500)->nullable();
